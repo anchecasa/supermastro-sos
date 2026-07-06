@@ -16,6 +16,9 @@ const SECRETS = [
   "STRIPE_WEBHOOK_SECRET",
   "CRON_SECRET",
   "ADMIN_EMAILS",
+  "GOOGLE_MAPS_API_KEY",
+  "OPENAI_API_KEY",
+  "ELEVENLABS_API_KEY",
 ];
 
 function loadEnv(path) {

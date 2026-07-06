@@ -2,15 +2,23 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Calendar, MapPin, User, X } from "lucide-react";
-import type { AssistantAppointment } from "@/lib/procione/types";
+import { Calendar, MapPin, MessageCircle, Phone, User, Volume2, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { AssistantAppointment, AssistantContact } from "@/lib/procione/types";
+import {
+  getProcioneCallConsent,
+  getProcioneWhatsAppConsent,
+} from "@/components/procione/procione-contacts-panel";
 
 const PROCIONE_AVATAR = "/images/supermastro-mezzobusto.png";
 const ORANGE = "#F27131";
 
 type AppointmentDetailSheetProps = {
   appointment: AssistantAppointment;
+  contacts?: AssistantContact[];
+  speaking?: boolean;
   onClose: () => void;
+  onReplay?: () => void;
   onDelete?: () => void;
   deleting?: boolean;
 };
@@ -50,11 +58,22 @@ function buildSubtitle(appt: AssistantAppointment): string {
 
 export function AppointmentDetailSheet({
   appointment,
+  contacts = [],
+  speaking = false,
   onClose,
+  onReplay,
   onDelete,
   deleting,
 }: AppointmentDetailSheetProps) {
   const subtitle = buildSubtitle(appointment);
+  const matchedContact = contacts.find(
+    (c) =>
+      appointment.contact_name &&
+      c.full_name.toLowerCase().includes(appointment.contact_name.toLowerCase().split(" ").pop() ?? "")
+  );
+  const phone = matchedContact?.phone;
+  const callOk = getProcioneCallConsent();
+  const waOk = getProcioneWhatsAppConsent();
 
   return (
     <>
@@ -75,7 +94,10 @@ export function AppointmentDetailSheet({
         >
           <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-[42%]">
             <div
-              className="relative h-[7.5rem] w-[7.5rem] overflow-hidden rounded-full border-[5px] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+              className={cn(
+                "relative h-[7.5rem] w-[7.5rem] overflow-hidden rounded-full border-[5px] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.18)] transition-transform",
+                speaking && "scale-105 animate-pulse"
+              )}
               style={{ borderColor: ORANGE }}
             >
               <Image src={PROCIONE_AVATAR} alt="SuperMastro Procione" fill className="object-cover" priority />
@@ -97,6 +119,18 @@ export function AppointmentDetailSheet({
                 {formatTime(appointment.starts_at)} — {appointment.title}
               </h2>
               <p className="text-sm leading-relaxed text-gray-500">{subtitle}</p>
+              {speaking ? (
+                <p className="text-xs font-medium text-[#F27131]">Procione sta parlando…</p>
+              ) : onReplay ? (
+                <button
+                  type="button"
+                  onClick={onReplay}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[#F27131] hover:underline"
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                  Ascolta di nuovo
+                </button>
+              ) : null}
             </div>
 
             <div className="mt-5 space-y-2.5 border-t border-gray-100 pt-4">
@@ -120,6 +154,31 @@ export function AppointmentDetailSheet({
                 </div>
               )}
             </div>
+
+            {phone && (callOk || waOk) && (
+              <div className="mt-4 flex gap-2">
+                {callOk && (
+                  <a
+                    href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#F27131] py-2.5 text-sm font-medium text-white"
+                  >
+                    <Phone className="h-4 w-4" />
+                    Chiama
+                  </a>
+                )}
+                {waOk && (
+                  <a
+                    href={`https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Ciao! Riguardo l'appuntamento ${appointment.title}.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-medium text-white"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp
+                  </a>
+                )}
+              </div>
+            )}
 
             <div className="mt-4 flex items-center justify-between">
               <span

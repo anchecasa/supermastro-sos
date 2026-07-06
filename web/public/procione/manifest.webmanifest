@@ -1,12 +1,16 @@
 {
+  "id": "/procione/",
   "name": "SuperMastro Procione",
   "short_name": "Procione",
-  "description": "Agenda intelligente vocale per Fernando",
+  "description": "Agenda intelligente vocale — di' we we per aprire",
   "start_url": "/procione/agenda",
+  "scope": "/procione/",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#F27131",
   "orientation": "portrait",
+  "lang": "it",
+  "categories": ["productivity", "business"],
   "icons": [
     {
       "src": "/images/supermastro-mezzobusto.png",
@@ -14,5 +18,20 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Agenda Procione",
+      "short_name": "Agenda",
+      "url": "/procione/agenda",
+      "icons": [{ "src": "/images/supermastro-mezzobusto.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Rubrica",
+      "short_name": "Rubrica",
+      "url": "/procione/agenda?tab=rubrica",
+      "icons": [{ "src": "/images/supermastro-mezzobusto.png", "sizes": "512x512" }]
+    }
+  ],
+  "handle_links": "preferred"
 }

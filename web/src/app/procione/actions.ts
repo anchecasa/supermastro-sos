@@ -15,6 +15,8 @@ import {
 } from "@/lib/procione/google-calendar";
 import { parseWithGpt } from "@/lib/procione/openai";
 import { getProcioneEnv, isOpenAiConfigured } from "@/lib/procione/env";
+import { formatDisplayName, normalizeContactName } from "@/lib/procione/normalize";
+import { upsertContact } from "@/lib/procione/upsert";
 
 const AGENDA_PATH = "/procione/agenda";
 
@@ -115,30 +117,60 @@ export async function createContact(input: {
   notes?: string;
 }) {
   const { supabase, user } = await requireProcioneAdmin();
+  const result = await upsertContact(supabase, user.id, input);
+  revalidatePath(AGENDA_PATH);
+  return result.data;
+}
+
+export async function updateContact(
+  id: string,
+  input: {
+    full_name: string;
+    company?: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+  }
+) {
+  const { supabase, user } = await requireProcioneAdmin();
+  const displayName = formatDisplayName(input.full_name);
 
   const { data, error } = await supabase
     .from("assistant_contacts")
-    .insert({
-      owner_id: user.id,
-      full_name: input.full_name,
-      company: input.company ?? null,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      notes: input.notes ?? null,
+    .update({
+      full_name: displayName,
+      normalized_name: normalizeContactName(displayName),
+      company: input.company?.trim() || null,
+      phone: input.phone?.trim() || null,
+      email: input.email?.trim() || null,
+      notes: input.notes?.trim() || null,
     })
+    .eq("id", id)
+    .eq("owner_id", user.id)
     .select("*")
     .single();
 
   if (error) throw new Error(error.message);
-
   revalidatePath(AGENDA_PATH);
   return data;
+}
+
+export async function deleteContact(id: string) {
+  const { supabase, user } = await requireProcioneAdmin();
+  const { error } = await supabase
+    .from("assistant_contacts")
+    .delete()
+    .eq("id", id)
+    .eq("owner_id", user.id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(AGENDA_PATH);
 }
 
 export async function appendVoiceLog(input: {
   role: "user" | "assistant";
   content: string;
-  action_type?: "appointment" | "contact" | "task" | "query";
+  action_type?: "appointment" | "contact" | "task" | "query" | "multi" | "call" | "whatsapp" | "navigate" | "chat" | "draft";
 }) {
   const { supabase, user } = await requireProcioneAdmin();
 
@@ -165,7 +197,9 @@ export async function processVoiceCommand(transcript: string) {
   let parsed = null;
   if (isOpenAiConfigured()) {
     const env = getProcioneEnv();
-    parsed = await parseWithGpt(env.openaiKey, env.openaiModel, transcript);
+    const { loadProcioneContext } = await import("@/lib/procione/context");
+    const ctx = await loadProcioneContext(supabase, user.id);
+    parsed = await parseWithGpt(env.openaiKey, env.openaiModel, transcript, ctx.contextBlock);
   }
 
   await appendVoiceLog({ role: "user", content: transcript, action_type: "query" });

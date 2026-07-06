@@ -9,6 +9,9 @@ Analizza comandi in italiano e rispondi SOLO con JSON valido (senza markdown):
   "contact": { "full_name": "", "company": "", "phone": "", "email": "" },
   "task": { "title": "", "description": "", "due_at": "ISO8601" }
 }
+Se l'utente chiede DUE azioni insieme (es. fissa appuntamento E memorizza contatto), popola appointment e contact nello stesso JSON.
+Per domande sull'agenda ("che appuntamenti ho oggi/domani/dopodomani/questa settimana", "cosa ho in programma") usa intent query_appointments (reply breve opzionale: l'elenco reale viene dal server).
+Frasi comuni: "fissa un appuntamento", "memorizza questo contatto", "sposta alle 11", "annulla appuntamento", "sposta tutti gli appuntamenti di oggi a domani", "chiama", "manda messaggio whatsapp", "ho un problema a casa", "apri supermastro", "cerco un artigiano".
 Ometti oggetti non pertinenti. Per appuntamenti senza durata, ends_at = starts_at + 1h.
 Timezone: Europe/Rome. Oggi: ${new Date().toISOString()}.`;
 
@@ -41,8 +44,13 @@ export async function transcribeWithWhisper(
 export async function parseWithGpt(
   apiKey: string,
   model: string,
-  transcript: string
+  transcript: string,
+  agendaContext?: string
 ): Promise<GptParsedCommand> {
+  const contextBlock = agendaContext
+    ? `\nContesto agenda attuale: ${agendaContext}`
+    : "";
+
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -54,7 +62,7 @@ export async function parseWithGpt(
       temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: SYSTEM_PROMPT + contextBlock },
         { role: "user", content: transcript },
       ],
     }),

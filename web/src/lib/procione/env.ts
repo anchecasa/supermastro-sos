@@ -29,11 +29,12 @@ export function getProcioneEnv() {
     openaiKey: process.env.OPENAI_API_KEY ?? "",
     openaiModel: process.env.OPENAI_MODEL ?? "gpt-4o",
     elevenLabsKey: process.env.ELEVENLABS_API_KEY ?? "",
-    elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "",
+    elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "IKne3meq5aSn9XLXHlEF",
     picovoiceAccessKey: process.env.NEXT_PUBLIC_PICOVOICE_ACCESS_KEY ?? "",
     picovoiceKeywordPath: process.env.NEXT_PUBLIC_PICOVOICE_KEYWORD_PATH ?? "",
     googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
     vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
     vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:anchecasa@anchecasa.it",
@@ -46,11 +47,15 @@ export function isOpenAiConfigured() {
 }
 
 export function isElevenLabsConfigured() {
-  return Boolean(process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID);
+  return Boolean(process.env.ELEVENLABS_API_KEY);
 }
 
 export function isGoogleCalendarConfigured() {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+}
+
+export function isGoogleMapsConfigured() {
+  return Boolean(process.env.GOOGLE_MAPS_API_KEY);
 }
 
 export function isWebPushConfigured() {

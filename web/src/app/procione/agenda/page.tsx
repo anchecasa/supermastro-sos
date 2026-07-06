@@ -20,18 +20,25 @@ export default async function ProcioneAgendaPage() {
 
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const endRange = new Date(startOfDay);
-  endRange.setDate(endRange.getDate() + 60);
+  startOfDay.setDate(startOfDay.getDate() - 30);
+  const endRange = new Date();
+  endRange.setDate(endRange.getDate() + 90);
 
   const [{ data: appointments }, { data: contacts }, { data: voiceLog }, { data: googleTokens }] =
     await Promise.all([
     supabase
       .from("assistant_appointments")
       .select("*")
+      .eq("owner_id", user!.id)
       .gte("starts_at", startOfDay.toISOString())
       .lte("starts_at", endRange.toISOString())
       .order("starts_at", { ascending: true }),
-    supabase.from("assistant_contacts").select("*").order("full_name", { ascending: true }).limit(20),
+    supabase
+      .from("assistant_contacts")
+      .select("*")
+      .eq("owner_id", user!.id)
+      .order("full_name", { ascending: true })
+      .limit(100),
     supabase
       .from("assistant_voice_log")
       .select("*")

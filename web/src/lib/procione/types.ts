@@ -2,7 +2,7 @@ export type AppointmentColor = "orange" | "green" | "blue" | "purple";
 export type AppointmentSource = "manual" | "voice" | "google";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled";
 export type VoiceRole = "user" | "assistant";
-export type ActionType = "appointment" | "contact" | "task" | "query";
+export type ActionType = "appointment" | "contact" | "task" | "query" | "multi" | "call" | "whatsapp" | "navigate" | "chat" | "draft";
 
 export type AssistantAppointment = {
   id: string;
@@ -11,17 +11,20 @@ export type AssistantAppointment = {
   description: string | null;
   location: string | null;
   contact_name: string | null;
+  contact_id?: string | null;
   starts_at: string;
   ends_at: string;
   color: AppointmentColor;
   source: AppointmentSource;
   status: AppointmentStatus;
+  google_event_id?: string | null;
   created_at: string;
 };
 
 export type AssistantContact = {
   id: string;
   full_name: string;
+  normalized_name?: string | null;
   company: string | null;
   phone: string | null;
   email: string | null;

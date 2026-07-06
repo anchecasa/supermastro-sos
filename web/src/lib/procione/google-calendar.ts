@@ -115,6 +115,39 @@ export async function createGoogleEvent(
   return data.id;
 }
 
+export async function updateGoogleEvent(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  event: {
+    title: string;
+    description?: string | null;
+    location?: string | null;
+    starts_at: string;
+    ends_at: string;
+  }
+) {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        summary: event.title,
+        description: event.description ?? undefined,
+        location: event.location ?? undefined,
+        start: { dateTime: event.starts_at, timeZone: "Europe/Rome" },
+        end: { dateTime: event.ends_at, timeZone: "Europe/Rome" },
+      }),
+    }
+  );
+
+  if (!res.ok) throw new Error(`Google update event: ${await res.text()}`);
+}
+
 export async function deleteGoogleEvent(
   accessToken: string,
   calendarId: string,

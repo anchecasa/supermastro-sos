@@ -5,37 +5,52 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   CalendarDays,
-  ChevronDown,
   ChevronRight,
-  Home,
+  Mail,
   Menu,
   Mic,
   MoreHorizontal,
   Sparkles,
   Users,
 } from "lucide-react";
-import { AgendaTimelineCard } from "@/components/procione/agenda-timeline-card";
+import { ProcioneCalendar } from "@/components/procione/calendar/procione-calendar";
+import { MailPlaceholderPanel } from "@/components/procione/mail-placeholder";
 import { AppointmentDetailSheet } from "@/components/procione/appointment-detail-sheet";
+import {
+  getProcioneCallConsent,
+  getProcioneWhatsAppConsent,
+  ProcioneContactsPanel,
+  type RubricaVoiceTrigger,
+} from "@/components/procione/procione-contacts-panel";
+import { PROCIONE_TAB_KEY } from "@/lib/procione/focus-agenda";
 import type {
   AssistantAppointment,
   AssistantContact,
   AssistantVoiceLog,
   CreateAppointmentInput,
 } from "@/lib/procione/types";
-import { createAppointment, deleteAppointment } from "@/app/procione/actions";
+import { createAppointment, createContact, deleteAppointment, deleteContact, updateContact } from "@/app/procione/actions";
 import {
   ProcioneIntegrations,
   ProcioneServiceWorkerRegister,
   subscribeProcionePush,
-  unsubscribeProcionePush,
 } from "@/components/procione/procione-integrations";
+import { ProcioneInstallBanner } from "@/components/procione/procione-install-banner";
+import { useProcioneSpeak } from "@/components/procione/use-procione-speak";
 import { useProcioneVoice } from "@/components/procione/use-procione-voice";
+import { ProcioneDraftCard } from "@/components/procione/procione-draft-card";
+import { ConciergeResultsCard } from "@/components/procione/concierge-results-card";
+import type { ConciergeSearchResult } from "@/lib/procione/concierge";
+import type { ProcioneDraft } from "@/lib/procione/draft";
+import type { ConciergePlaceResult } from "@/lib/procione/concierge";
+import { loadProcioneSession, type ProcioneDataMode } from "@/lib/procione/session";
+import { useProcioneScreenWakeLock } from "@/components/procione/use-procione-wake-lock";
 import { cn } from "@/lib/utils";
 
 const PROCIONE_AVATAR = "/images/supermastro-mezzobusto.png";
 const ORANGE = "#F27131";
 
-type TabId = "agenda" | "ricevuti" | "crea";
+type TabId = "agenda" | "contatti" | "ricevuti" | "crea" | "mail" | "altro";
 
 type AgendaAppProps = {
   displayName: string;
@@ -45,13 +60,6 @@ type AgendaAppProps = {
   initialContacts: AssistantContact[];
   initialVoiceLog: AssistantVoiceLog[];
 };
-
-function formatAgendaDayLabel(date: Date) {
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "numeric",
-    month: "long",
-  }).format(date);
-}
 
 export function AgendaApp({
   displayName,
@@ -63,9 +71,11 @@ export function AgendaApp({
 }: AgendaAppProps) {
   const [tab, setTab] = useState<TabId>("agenda");
   const [appointments, setAppointments] = useState(initialAppointments);
+  const [contacts, setContacts] = useState(initialContacts);
   const [voiceLog, setVoiceLog] = useState(initialVoiceLog);
   const [googleConnected, setGoogleConnected] = useState(initialGoogleConnected);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushAttempted, setPushAttempted] = useState(false);
   const [selected, setSelected] = useState<AssistantAppointment | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
@@ -80,6 +90,11 @@ export function AgendaApp({
     color: "orange" as AssistantAppointment["color"],
   });
   const [pending, setPending] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<ProcioneDraft | null>(null);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [dataMode, setDataMode] = useState<ProcioneDataMode>(() => loadProcioneSession().dataMode);
+  const [conciergeResult, setConciergeResult] = useState<ConciergeSearchResult | null>(null);
+  const [rubricaVoiceTrigger, setRubricaVoiceTrigger] = useState<RubricaVoiceTrigger | null>(null);
 
   const sortedAppointments = useMemo(
     () =>
@@ -89,63 +104,364 @@ export function AgendaApp({
     [appointments]
   );
 
-  const todayAppointments = useMemo(() => {
-    const today = new Date();
-    return sortedAppointments.filter((a) => {
-      const d = new Date(a.starts_at);
-      return (
-        d.getDate() === today.getDate() &&
-        d.getMonth() === today.getMonth() &&
-        d.getFullYear() === today.getFullYear()
-      );
-    });
-  }, [sortedAppointments]);
-
   function showToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(null), 3200);
   }
 
+  function mergeAppointments(incoming: AssistantAppointment[]) {
+    if (!incoming.length) return;
+    setAppointments((prev) => {
+      const next = [...prev];
+      for (const appt of incoming) {
+        const idx = next.findIndex((p) => p.id === appt.id);
+        if (idx >= 0) next[idx] = appt;
+        else next.push(appt);
+      }
+      return next.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+    });
+  }
+
+  function mergeContacts(incoming: AssistantContact[]) {
+    if (!incoming.length) return;
+    setContacts((prev) => {
+      const next = [...prev];
+      for (const c of incoming) {
+        const idx = next.findIndex((p) => p.id === c.id);
+        if (idx >= 0) next[idx] = c;
+        else next.push(c);
+      }
+      return next.sort((a, b) => a.full_name.localeCompare(b.full_name, "it"));
+    });
+  }
+
+  function applyRubricaVoice(result: {
+    type: string;
+    rubricaAction?: "open" | "add" | "search";
+    rubricaSearch?: string;
+    contact?: unknown;
+  }) {
+    const rubricaTypes = ["contact", "call", "whatsapp", "multi"];
+    if (!result.rubricaAction && !rubricaTypes.includes(result.type)) return;
+
+    setTab("contatti");
+
+    if (result.rubricaAction === "add") {
+      const c = result.contact as AssistantContact | undefined;
+      setRubricaVoiceTrigger({
+        action: "add",
+        prefill: c
+          ? {
+              full_name: c.full_name ?? "",
+              company: c.company ?? "",
+              phone: c.phone ?? "",
+              email: c.email ?? "",
+              notes: c.notes ?? "",
+            }
+          : undefined,
+        nonce: Date.now(),
+      });
+      return;
+    }
+
+    if (result.rubricaAction === "search" && result.rubricaSearch) {
+      setRubricaVoiceTrigger({
+        action: "search",
+        query: result.rubricaSearch,
+        nonce: Date.now(),
+      });
+      return;
+    }
+
+    if (result.rubricaAction === "open" || rubricaTypes.includes(result.type)) {
+      setRubricaVoiceTrigger({ action: "open", nonce: Date.now() });
+    }
+  }
+
+  const procioneSpeak = useProcioneSpeak();
+
+  async function applyVoiceResult(result: {
+    transcript: string;
+    reply: string;
+    type: string;
+    draft?: ProcioneDraft;
+    awaitingConfirm?: boolean;
+    appointments?: unknown[];
+    appointment?: unknown;
+    contacts?: unknown[];
+    contact?: unknown;
+    rubricaAction?: "open" | "add" | "search";
+    rubricaSearch?: string;
+    agendaAction?: "open";
+    navigate?: { url: string; label: string };
+    call?: { phone: string; name: string };
+    whatsapp?: { phone: string; name: string; url: string };
+    dataMode?: ProcioneDataMode;
+    concierge?: ConciergeSearchResult;
+    task?: unknown;
+  }) {
+    if (result.dataMode) {
+      setDataMode(result.dataMode);
+    }
+    if (result.concierge) {
+      setConciergeResult(result.concierge);
+    }
+    if (
+      result.reply.includes("modalità presentazione") ||
+      result.reply.includes("dati reali da Supabase")
+    ) {
+      showToast(result.reply.slice(0, 140));
+    }
+    setVoiceLog((prev) => [
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: result.transcript,
+        action_type: "query",
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: result.reply,
+        action_type: (result.type === "unknown" ? "query" : result.type) as AssistantVoiceLog["action_type"],
+        created_at: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+
+    const newAppointments = (result.appointments ?? (result.appointment ? [result.appointment] : [])) as AssistantAppointment[];
+    const newContacts = (result.contacts ?? (result.contact ? [result.contact] : [])) as AssistantContact[];
+
+    mergeAppointments(newAppointments);
+    if (newContacts.length) {
+      mergeContacts(newContacts);
+    }
+
+    applyRubricaVoice(result);
+
+    if (result.agendaAction === "open") {
+      setTab("agenda");
+    }
+
+    if (result.draft && result.awaitingConfirm) {
+      setPendingDraft(result.draft);
+      showToast("Conferma con ok o pulsante");
+      setProcioneMood("active");
+      return;
+    }
+
+    if (result.type === "chat") {
+      if (result.reply.toLowerCase().includes("annullo")) {
+        setPendingDraft(null);
+      }
+      if (!result.reply.includes("modalità presentazione") && !result.reply.includes("dati reali da Supabase")) {
+        showToast(result.reply.slice(0, 120));
+      }
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 2200);
+      return;
+    }
+
+    if (result.type === "task") {
+      setPendingDraft(null);
+      showToast(result.reply || "Promemoria salvato!");
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 2000);
+      return;
+    }
+
+    if (result.type === "multi") {
+      setPendingDraft(null);
+      showToast("Appuntamento e contatto registrati!");
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 2000);
+      return;
+    }
+
+    if (result.type === "appointment") {
+      setPendingDraft(null);
+      showToast(result.reply || "Appuntamento registrato!");
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 2000);
+      return;
+    }
+
+    if (result.type === "contact") {
+      setPendingDraft(null);
+      showToast(result.reply || "Contatto salvato in rubrica!");
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 2000);
+      return;
+    }
+
+    if (result.type === "query" && result.rubricaAction) {
+      showToast(result.reply);
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 1800);
+      return;
+    }
+
+    if (result.type === "query") {
+      showToast(result.reply);
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 1800);
+      return;
+    }
+
+    if (result.type === "call" && result.call) {
+      if (getProcioneCallConsent()) {
+        window.location.href = `tel:${result.call.phone.replace(/[^\d+]/g, "")}`;
+        showToast(`Chiamata a ${result.call.name}`);
+      } else {
+        showToast("Autorizza le chiamate nella Rubrica");
+        setTab("contatti");
+      }
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 1800);
+      return;
+    }
+
+    if (result.type === "whatsapp" && result.whatsapp) {
+      if (getProcioneWhatsAppConsent()) {
+        window.open(result.whatsapp.url, "_blank", "noopener,noreferrer");
+        showToast(`WhatsApp a ${result.whatsapp.name}`);
+      } else {
+        showToast("Autorizza WhatsApp nella Rubrica");
+        setTab("contatti");
+      }
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 1800);
+      return;
+    }
+
+    if (result.type === "navigate" && result.navigate) {
+      showToast(result.reply);
+      setProcioneMood("success");
+      window.setTimeout(() => {
+        window.location.href = result.navigate!.url;
+      }, 600);
+      return;
+    }
+
+    setProcioneMood("success");
+    window.setTimeout(() => setProcioneMood("idle"), 1800);
+  }
+
+  function handleSaveConciergePlace(place: ConciergePlaceResult, _index: number) {
+    if (!conciergeResult || conciergeResult.kind === "train") return;
+    setPendingDraft({
+      kind: "place_favorite",
+      placeFavorite: {
+        kind: conciergeResult.kind,
+        name: place.name,
+        address: place.address,
+        city: conciergeResult.destination,
+        mapsUrl: place.mapsUrl,
+        placeId: place.placeId,
+        rating: place.rating,
+      },
+      summary: `Memorizzo ${conciergeResult.kind === "hotel" ? "l'albergo" : "il ristorante"} «${place.name}» a ${conciergeResult.destination}. Confermi? Di' ok.`,
+    });
+    showToast("Conferma con ok o pulsante");
+    setProcioneMood("active");
+  }
+
+  async function confirmPendingDraft() {
+    if (!pendingDraft) return;
+    setDraftSaving(true);
+    try {
+      const res = await fetch("/api/procione/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft: pendingDraft }),
+      });
+      const data = (await res.json()) as Parameters<typeof applyVoiceResult>[0] & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Conferma fallita");
+      setPendingDraft(null);
+      await applyVoiceResult({
+        transcript: "Conferma",
+        reply: data.reply,
+        type: data.type,
+        appointment: data.appointment,
+        appointments: data.appointments,
+        contact: data.contact,
+        contacts: data.contacts,
+      });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Errore salvataggio");
+    } finally {
+      setDraftSaving(false);
+    }
+  }
+
   const voice = useProcioneVoice({
+    getPendingDraft: () => pendingDraft,
     onWake: () => setProcioneMood("active"),
-    onListeningChange: setListening,
+    onListeningChange: (isListening) => {
+      setListening(isListening);
+      if (isListening) setProcioneMood("active");
+    },
+    onPrompt: (text) => procioneSpeak.speak(text),
     onError: (msg) => {
       setProcioneMood("idle");
       showToast(msg);
     },
     onResult: (result) => {
-      setVoiceLog((prev) => [
-        {
-          id: crypto.randomUUID(),
-          role: "user",
-          content: result.transcript,
-          action_type: "query",
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: result.reply,
-          action_type: result.type as AssistantVoiceLog["action_type"],
-          created_at: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-
-      if (result.type === "appointment") {
-        showToast("Appuntamento registrato!");
-        setProcioneMood("success");
-        window.location.reload();
-        return;
-      }
-
-      setProcioneMood("success");
-      window.setTimeout(() => setProcioneMood("idle"), 1800);
+      void applyVoiceResult(result);
     },
   });
 
+  useProcioneScreenWakeLock(voice.wakeEnabled);
+
+  useEffect(() => {
+    sessionStorage.setItem(PROCIONE_TAB_KEY, tab);
+  }, [tab]);
+
+  useEffect(() => {
+    if (!voice.wakeEnabled || pushAttempted) return;
+    setPushAttempted(true);
+    void subscribeProcionePush()
+      .then(() => setPushEnabled(true))
+      .catch(() => {
+        /* VAPID non configurato o permesso negato */
+      });
+  }, [voice.wakeEnabled, pushAttempted]);
+
+  useEffect(() => {
+    if (listening || voice.processing || procioneSpeak.speaking) return;
+    setProcioneMood((prev) => (prev === "active" ? "idle" : prev));
+  }, [listening, voice.processing, voice.manualListening, procioneSpeak.speaking]);
+
+  async function readVoiceMessage(content: string) {
+    setProcioneMood("active");
+    try {
+      await procioneSpeak.speakMessage(content);
+    } finally {
+      setProcioneMood("idle");
+    }
+  }
+
+  useEffect(() => {
+    if (!selected) return;
+    setProcioneMood("active");
+    void procioneSpeak.speakAppointment(selected).finally(() => {
+      window.setTimeout(() => setProcioneMood("idle"), 400);
+    });
+  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function closeAppointment() {
+    procioneSpeak.stop();
+    setSelected(null);
+    setProcioneMood("idle");
+  }
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam === "rubrica" || tabParam === "contatti") {
+      setTab("contatti");
+    }
     const google = params.get("google");
     if (google === "connected") {
       setGoogleConnected(true);
@@ -153,6 +469,8 @@ export function AgendaApp({
       window.history.replaceState({}, "", "/procione/agenda");
     } else if (google === "error") {
       showToast("Collegamento Google fallito");
+      window.history.replaceState({}, "", "/procione/agenda");
+    } else if (tabParam) {
       window.history.replaceState({}, "", "/procione/agenda");
     }
   }, []);
@@ -201,7 +519,7 @@ export function AgendaApp({
     try {
       await deleteAppointment(id);
       setAppointments((prev) => prev.filter((a) => a.id !== id));
-      setSelected(null);
+      closeAppointment();
       showToast("Appuntamento eliminato");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Errore");
@@ -243,6 +561,16 @@ export function AgendaApp({
             >
               Procione attivo
             </span>
+            <span
+              className={cn(
+                "ml-1 mt-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold",
+                dataMode === "meeting_demo"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-emerald-100 text-emerald-800"
+              )}
+            >
+              {dataMode === "meeting_demo" ? "Demo riunione" : "Dati reali"}
+            </span>
           </div>
           <ChevronRight className="h-5 w-5 shrink-0 text-gray-300" />
         </div>
@@ -264,6 +592,7 @@ export function AgendaApp({
         {(
           [
             ["agenda", "Agenda"],
+            ["contatti", "Rubrica"],
             ["ricevuti", "Ricevuti"],
             ["crea", "Crea"],
           ] as const
@@ -286,91 +615,64 @@ export function AgendaApp({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
-        <ProcioneIntegrations
-          googleConnected={googleConnected}
-          pushEnabled={pushEnabled}
-          wakeEnabled={voice.wakeEnabled}
-          onWakeToggle={(enable) => {
-            if (enable) void voice.enableWakeWord();
-            else voice.disableWakeWord();
-          }}
-          onGoogleSync={async () => {
-            const res = await fetch("/api/procione/google/sync", { method: "POST" });
-            const data = (await res.json()) as { imported?: number; error?: string };
-            if (!res.ok) throw new Error(data.error ?? "Sync fallita");
-            showToast(`Importati ${data.imported ?? 0} eventi da Google`);
-            window.location.reload();
-          }}
-          onPushToggle={async (enable) => {
-            if (enable) {
-              await subscribeProcionePush();
-              setPushEnabled(true);
-              showToast("Promemoria push attivi (15 min prima)");
-            } else {
-              await unsubscribeProcionePush();
-              setPushEnabled(false);
-              showToast("Push disattivate");
-            }
-          }}
-        />
-
         {tab === "agenda" && (
           <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-1 text-base font-bold text-[#F27131]">
-                Agenda
-                <ChevronDown className="h-4 w-4 text-[#F27131]" />
-              </h2>
-              <button
-                type="button"
-                className="flex items-center gap-1 text-xs font-medium text-[#F27131]"
-              >
-                {formatAgendaDayLabel(new Date())}
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="mb-4 flex items-center gap-4 border-b border-gray-100 pb-2 text-xs">
-              <button type="button" className="font-semibold text-[#F27131]">
-                Tutti
-              </button>
-              <button type="button" className="text-gray-400">
-                In sospeso
-              </button>
-              <span className="ml-auto text-gray-400">{todayAppointments.length} oggi</span>
-            </div>
-
-            {sortedAppointments.length === 0 ? (
-              <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-                <Image
-                  src={PROCIONE_AVATAR}
-                  alt="Procione"
-                  width={80}
-                  height={80}
-                  className="mx-auto rounded-full"
-                />
-                <p className="mt-3 text-sm text-gray-600">
-                  Nessun appuntamento. Di&apos; &quot;Ehi Procione, segna riunione domani alle 10&quot; o usa la tab
-                  Crea.
-                </p>
-              </div>
-            ) : (
-              <div className="relative pl-14">
-                <div
-                  className="absolute bottom-2 left-[1.35rem] top-2 w-0.5 rounded-full"
-                  style={{ backgroundColor: ORANGE }}
-                />
-                {sortedAppointments.map((appt) => (
-                  <AgendaTimelineCard
-                    key={appt.id}
-                    appointment={appt}
-                    selected={selected?.id === appt.id}
-                    onSelect={() => setSelected(appt)}
-                  />
-                ))}
-              </div>
-            )}
+            <ProcioneInstallBanner />
+            <ProcioneCalendar
+              appointments={sortedAppointments}
+              onSelectAppointment={setSelected}
+            />
           </section>
+        )}
+
+        {tab === "contatti" && (
+          <ProcioneContactsPanel
+            contacts={contacts}
+            voiceTrigger={rubricaVoiceTrigger}
+            onVoiceTriggerHandled={() => setRubricaVoiceTrigger(null)}
+            onCreate={async (input) => {
+              const created = (await createContact(input)) as AssistantContact;
+              mergeContacts([created]);
+              showToast(`${created.full_name} in rubrica`);
+              return created;
+            }}
+            onUpdate={async (id, input) => {
+              const updated = (await updateContact(id, input)) as AssistantContact;
+              mergeContacts([updated]);
+              showToast("Contatto aggiornato");
+              return updated;
+            }}
+            onDelete={async (id) => {
+              await deleteContact(id);
+              setContacts((prev) => prev.filter((c) => c.id !== id));
+              showToast("Contatto eliminato");
+            }}
+            onCall={(c) => showToast(`Chiamata a ${c.full_name}`)}
+            onWhatsApp={(c) => showToast(`WhatsApp a ${c.full_name}`)}
+          />
+        )}
+
+        {tab === "mail" && <MailPlaceholderPanel />}
+
+        {tab === "altro" && (
+          <ProcioneIntegrations
+            googleConnected={googleConnected}
+            pushEnabled={pushEnabled}
+            wakeEnabled={voice.wakeEnabled}
+            onWakeToggle={(enable) => {
+              if (enable) void voice.enableWakeWord();
+              else voice.disableWakeWord();
+            }}
+            onGoogleSync={async () => {
+              const res = await fetch("/api/procione/google/sync", { method: "POST" });
+              const data = (await res.json()) as { imported?: number; updated?: number; error?: string };
+              if (!res.ok) throw new Error(data.error ?? "Sync fallita");
+              showToast(
+                `Google: ${data.imported ?? 0} importati, ${data.updated ?? 0} aggiornati`
+              );
+              window.location.reload();
+            }}
+          />
         )}
 
         {tab === "ricevuti" && (
@@ -381,32 +683,29 @@ export function AgendaApp({
                 <p className="text-sm text-gray-500">Nessun messaggio ancora. Usa il microfono in basso.</p>
               )}
               {voiceLog.map((msg) => (
-                <div
+                <button
                   key={msg.id}
+                  type="button"
+                  onClick={() => {
+                    if (msg.role === "assistant") void readVoiceMessage(msg.content);
+                  }}
+                  disabled={msg.role === "user" || procioneSpeak.speaking}
                   className={cn(
-                    "max-w-[90%] rounded-2xl px-4 py-3 text-sm shadow-sm",
-                    msg.role === "user" ? "ml-auto bg-[#F27131] text-white" : "mr-auto bg-white text-gray-800"
+                    "max-w-[90%] rounded-2xl px-4 py-3 text-left text-sm shadow-sm transition",
+                    msg.role === "user"
+                      ? "ml-auto cursor-default bg-[#F27131] text-white"
+                      : "mr-auto bg-white text-gray-800 hover:bg-orange-50 active:scale-[0.99]"
                   )}
                 >
                   {msg.content}
-                </div>
+                  {msg.role === "assistant" && (
+                    <span className="mt-1 block text-[10px] font-medium text-[#F27131]">
+                      Tocca per sentire Procione
+                    </span>
+                  )}
+                </button>
               ))}
             </div>
-
-            {initialContacts.length > 0 && (
-              <div className="mt-6">
-                <h3 className="mb-2 text-sm font-semibold text-gray-700">Contatti salvati</h3>
-                <div className="space-y-2">
-                  {initialContacts.map((c) => (
-                    <div key={c.id} className="rounded-xl bg-white p-3 shadow-sm">
-                      <p className="font-medium">{c.full_name}</p>
-                      {c.company && <p className="text-xs text-gray-500">{c.company}</p>}
-                      {c.phone && <p className="text-xs text-[#F27131]">{c.phone}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </section>
         )}
 
@@ -503,12 +802,13 @@ export function AgendaApp({
         )}
       </div>
 
-      {procioneMood !== "idle" && !selected && (
+      {(procioneMood !== "idle" || procioneSpeak.speaking) && !selected && (
         <div className="pointer-events-none absolute inset-x-0 top-1/3 z-20 flex justify-center">
           <div
             className={cn(
               "relative h-28 w-28 overflow-hidden rounded-full border-4 bg-white shadow-2xl transition-transform",
-              procioneMood === "active" && "scale-110 animate-pulse",
+              (procioneMood === "active" || listening || voice.manualListening || voice.processing || procioneSpeak.speaking) &&
+                "scale-110 animate-pulse",
               procioneMood === "success" && "scale-100"
             )}
             style={{ borderColor: ORANGE }}
@@ -518,10 +818,35 @@ export function AgendaApp({
         </div>
       )}
 
+      {pendingDraft && !selected && (
+        <ProcioneDraftCard
+          draft={pendingDraft}
+          pending={draftSaving}
+          onConfirm={() => void confirmPendingDraft()}
+          onCancel={() => {
+            setPendingDraft(null);
+            showToast("Bozza annullata");
+          }}
+        />
+      )}
+
+      {conciergeResult && !selected && (
+        <div className="fixed inset-x-0 bottom-24 z-30 mx-auto max-w-md px-4">
+          <ConciergeResultsCard
+            result={conciergeResult}
+            onDismiss={() => setConciergeResult(null)}
+            onSavePlace={handleSaveConciergePlace}
+          />
+        </div>
+      )}
+
       {selected && (
         <AppointmentDetailSheet
           appointment={selected}
-          onClose={() => setSelected(null)}
+          contacts={contacts}
+          speaking={procioneSpeak.speaking}
+          onClose={closeAppointment}
+          onReplay={() => void procioneSpeak.speakAppointment(selected)}
           onDelete={() => handleDelete(selected.id)}
           deleting={pending}
         />
@@ -534,43 +859,65 @@ export function AgendaApp({
         )}
       >
         <div className="relative flex items-end justify-between">
-          <button type="button" className="flex flex-col items-center gap-1 text-[#F27131]">
-            <Home className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Home</span>
-          </button>
-
           <button
             type="button"
             onClick={() => setTab("agenda")}
-            className="flex flex-col items-center gap-1 text-gray-400"
+            className={cn(
+              "flex flex-col items-center gap-1",
+              tab === "agenda" ? "text-[#F27131]" : "text-gray-400"
+            )}
           >
             <CalendarDays className="h-5 w-5" />
-            <span className="text-[10px]">Agenda</span>
+            <span className="text-[10px] font-medium">Agenda</span>
           </button>
 
           <button
             type="button"
-            onClick={() => {
-              setProcioneMood("active");
-              void voice.startManualVoice();
-            }}
-            disabled={listening || voice.processing}
+            onClick={() => setTab("contatti")}
+            className={cn(
+              "flex flex-col items-center gap-1",
+              tab === "contatti" ? "text-[#F27131]" : "text-gray-400"
+            )}
+          >
+            <Users className="h-5 w-5" />
+            <span className="text-[10px]">Rubrica</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => voice.toggleManualVoice()}
+            disabled={voice.processing && !voice.manualListening}
             className={cn(
               "absolute left-1/2 -top-7 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full text-white shadow-lg transition",
-              listening ? "scale-110 animate-pulse" : "hover:scale-105"
+              listening || voice.manualListening ? "scale-110 animate-pulse ring-4 ring-[#F27131]/40" : "hover:scale-105"
             )}
             style={{ backgroundColor: ORANGE }}
-            aria-label="Ehi Procione"
+            aria-label={voice.manualListening ? "Ferma ascolto" : "Parla con Procione"}
+            aria-pressed={voice.manualListening}
           >
             <Mic className="h-7 w-7" />
           </button>
 
-          <button type="button" className="flex flex-col items-center gap-1 text-gray-400">
-            <Users className="h-5 w-5" />
-            <span className="text-[10px]">Fornitore</span>
+          <button
+            type="button"
+            onClick={() => setTab("mail")}
+            className={cn(
+              "flex flex-col items-center gap-1",
+              tab === "mail" ? "text-[#F27131]" : "text-gray-400"
+            )}
+          >
+            <Mail className="h-5 w-5" />
+            <span className="text-[10px]">Mail</span>
           </button>
 
-          <button type="button" className="flex flex-col items-center gap-1 text-gray-400">
+          <button
+            type="button"
+            onClick={() => setTab("altro")}
+            className={cn(
+              "flex flex-col items-center gap-1",
+              tab === "altro" ? "text-[#F27131]" : "text-gray-400"
+            )}
+          >
             <MoreHorizontal className="h-5 w-5" />
             <span className="text-[10px]">Altro</span>
           </button>
@@ -578,11 +925,13 @@ export function AgendaApp({
         <p className="mt-3 flex items-center justify-center gap-1 text-center text-[10px] text-gray-400">
           <Sparkles className="h-3 w-3" />
           {voice.statusHint ??
-            (listening || voice.processing
-              ? "Ascolto… parla ora"
-              : voice.wakeEnabled
-                ? "Di' «Ehi Procione, segna riunione domani alle 10»"
-                : "Chrome/Edge · clicca microfono o attiva Ehi Procione")}
+            (voice.manualListening
+              ? "Ascolto… clicca di nuovo per finire"
+              : listening || voice.processing
+                ? "Ascolto… parla ora"
+                : voice.wakeEnabled
+                  ? "Di' «we we» oppure clicca il microfono"
+                  : "Consenti microfono · ascolto vocale sempre attivo")}
         </p>
       </div>
     </div>

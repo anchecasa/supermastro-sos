@@ -43,6 +43,7 @@ export async function POST() {
   );
 
   let imported = 0;
+  let updated = 0;
   for (const ev of events) {
     const starts = ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T09:00:00+01:00` : null);
     const ends = ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T10:00:00+01:00` : null);
@@ -50,12 +51,28 @@ export async function POST() {
 
     const { data: existing } = await supabase
       .from("assistant_appointments")
-      .select("id")
+      .select("id, title, starts_at, ends_at, location, description")
       .eq("owner_id", user.id)
       .eq("google_event_id", ev.id)
       .maybeSingle();
 
-    if (existing) continue;
+    if (existing) {
+      const patch: Record<string, string | null> = {};
+      if (existing.title !== ev.summary) patch.title = ev.summary;
+      if (existing.starts_at !== starts) patch.starts_at = starts;
+      if (existing.ends_at !== ends) patch.ends_at = ends;
+      if ((existing.location ?? null) !== (ev.location ?? null)) patch.location = ev.location ?? null;
+      if ((existing.description ?? null) !== (ev.description ?? null)) patch.description = ev.description ?? null;
+
+      if (Object.keys(patch).length) {
+        const { error } = await supabase
+          .from("assistant_appointments")
+          .update(patch)
+          .eq("id", existing.id);
+        if (!error) updated++;
+      }
+      continue;
+    }
 
     const { error } = await supabase.from("assistant_appointments").insert({
       owner_id: user.id,
@@ -72,7 +89,7 @@ export async function POST() {
     if (!error) imported++;
   }
 
-  return NextResponse.json({ imported, total: events.length });
+  return NextResponse.json({ imported, updated, total: events.length });
 }
 
 export async function GET() {

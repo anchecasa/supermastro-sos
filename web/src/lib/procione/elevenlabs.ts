@@ -1,7 +1,8 @@
 export async function synthesizeSpeech(
   apiKey: string,
   voiceId: string,
-  text: string
+  text: string,
+  speed = 1.12
 ): Promise<Buffer> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: "POST",
@@ -13,7 +14,13 @@ export async function synthesizeSpeech(
     body: JSON.stringify({
       text,
       model_id: "eleven_multilingual_v2",
-      voice_settings: { stability: 0.45, similarity_boost: 0.75 },
+      voice_settings: {
+        stability: 0.45,
+        similarity_boost: 0.75,
+        style: 0.55,
+        use_speaker_boost: true,
+        speed,
+      },
     }),
   });
 

@@ -78,6 +78,9 @@ jobs:
           put_secret TWILIO_ACCOUNT_SID "${{ secrets.TWILIO_ACCOUNT_SID }}"
           put_secret TWILIO_AUTH_TOKEN "${{ secrets.TWILIO_AUTH_TOKEN }}"
           put_secret TWILIO_FROM_NUMBER "${{ secrets.TWILIO_FROM_NUMBER }}"
+          put_secret GOOGLE_MAPS_API_KEY "${{ secrets.GOOGLE_MAPS_API_KEY }}"
+          put_secret OPENAI_API_KEY "${{ secrets.OPENAI_API_KEY }}"
+          put_secret ELEVENLABS_API_KEY "${{ secrets.ELEVENLABS_API_KEY }}"
 
       - name: Deploy Worker
         working-directory: web
