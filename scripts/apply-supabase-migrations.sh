@@ -32,7 +32,17 @@ link_project() {
     exit 1
   fi
   echo "→ link progetto $PROJECT_REF"
-  npx supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --yes
+  local attempt=1
+  while [[ $attempt -le 3 ]]; do
+    if npx supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --yes; then
+      return 0
+    fi
+    echo "::warning::link Supabase tentativo $attempt fallito — retry tra 30s"
+    sleep 30
+    attempt=$((attempt + 1))
+  done
+  echo "ERRORE: impossibile collegare il progetto Supabase dopo 3 tentativi."
+  exit 1
 }
 
 migration_applied() {
