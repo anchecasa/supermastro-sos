@@ -17,8 +17,12 @@ export default async function SuperMastroLoginPage({
       </Link>
       <MagicLinkForm
         role="client"
-        title="Accedi a SuperMastro"
-        subtitle="Ti invieremo un link sicuro via email. Nessuna password."
+        title={nextPath?.startsWith("/procione") ? "Accedi a Procione Agenda" : "Accedi a SuperMastro"}
+        subtitle={
+          nextPath?.startsWith("/procione")
+            ? "Area riservata admin. Ti invieremo un link sicuro via email."
+            : "Ti invieremo un link sicuro via email. Nessuna password."
+        }
         privacyLabel="Ho letto e accetto l'informativa privacy e i termini del servizio cliente SOS."
         nextPath={nextPath}
       />

@@ -19,15 +19,25 @@ const ENV_PATH = resolve(ROOT, "web", ".env.local");
 const SECRETS_PATH = resolve(ROOT, "web", ".env.secrets.local");
 
 const SUPERMASTRO_REDIRECTS = [
+  "http://localhost:3000/**",
+  "http://127.0.0.1:3000/**",
   "http://localhost:3000/supermastro/auth/callback",
+  "http://localhost:3000/supermastro/auth/confirm",
   "http://localhost:3000/artigiano/auth/callback",
   "http://127.0.0.1:3000/supermastro/auth/callback",
+  "http://127.0.0.1:3000/supermastro/auth/confirm",
   "http://127.0.0.1:3000/artigiano/auth/callback",
+  "https://anchecasa.it/**",
+  "https://www.anchecasa.it/**",
   "https://anchecasa.it/supermastro/auth/callback",
+  "https://anchecasa.it/supermastro/auth/confirm",
   "https://anchecasa.it/artigiano/auth/callback",
   "https://www.anchecasa.it/supermastro/auth/callback",
+  "https://www.anchecasa.it/supermastro/auth/confirm",
   "https://www.anchecasa.it/artigiano/auth/callback",
+  "https://supermastro-sos.anchecasa.workers.dev/**",
   "https://supermastro-sos.anchecasa.workers.dev/supermastro/auth/callback",
+  "https://supermastro-sos.anchecasa.workers.dev/supermastro/auth/confirm",
   "https://supermastro-sos.anchecasa.workers.dev/artigiano/auth/callback",
 ];
 
@@ -330,16 +340,30 @@ function mergeRedirectAllowList(current) {
   return [...set].join(",");
 }
 
+/** Link diretto all'app — evita l'endpoint supabase.co/auth/v1/verify (PKCE rotto). */
+const MAGIC_LINK_TEMPLATE = `<h2>Accedi a SuperMastro</h2>
+<p>Clicca per entrare (link valido una sola volta):</p>
+<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink">Accedi ora</a></p>
+<p style="color:#666;font-size:12px">Apri il link nello stesso browser dove hai richiesto l'accesso.</p>`;
+
+const CONFIRMATION_TEMPLATE = `<h2>Conferma email SuperMastro</h2>
+<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=signup">Conferma e accedi</a></p>`;
+
 async function configureAuth(token) {
   const current = await mgmt("GET", `/projects/${PROJECT_REF}/config/auth`, token);
   const uri_allow_list = mergeRedirectAllowList(current.uri_allow_list);
-  const patch = { uri_allow_list };
-
-  if (!current.site_url) {
-    patch.site_url = "https://www.anchecasa.it";
-  }
+  const patch = {
+    uri_allow_list,
+    mailer_autoconfirm: true,
+    site_url: "http://localhost:3000",
+    mailer_subjects_magic_link: "Accedi a SuperMastro",
+    mailer_templates_magic_link_content: MAGIC_LINK_TEMPLATE,
+    mailer_subjects_confirmation: "Conferma email SuperMastro",
+    mailer_templates_confirmation_content: CONFIRMATION_TEMPLATE,
+  };
 
   await mgmt("PATCH", `/projects/${PROJECT_REF}/config/auth`, token, patch);
+  console.log("  Email template: magic link → app /auth/confirm (no supabase verify)");
   return uri_allow_list.split(",").length;
 }
 

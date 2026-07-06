@@ -14,6 +14,20 @@ export type AuthActionState = {
   success?: string;
 };
 
+function translateAuthError(message: string): string {
+  const rateMatch = message.match(/after (\d+) seconds?/i);
+  if (rateMatch) {
+    return `Per sicurezza, attendi ${rateMatch[1]} secondi prima di richiedere un nuovo link.`;
+  }
+  if (message.toLowerCase().includes("rate limit")) {
+    return "Troppi tentativi. Attendi un minuto e riprova.";
+  }
+  if (message.toLowerCase().includes("invalid email")) {
+    return "Indirizzo email non valido.";
+  }
+  return message;
+}
+
 export async function sendMagicLink(
   _prev: AuthActionState,
   formData: FormData
@@ -38,12 +52,13 @@ export async function sendMagicLink(
       email,
       options: {
         emailRedirectTo: getAuthCallbackUrl(role, origin, next),
+        shouldCreateUser: true,
         data: { role },
       },
     });
 
     if (error) {
-      return { error: error.message };
+      return { error: translateAuthError(error.message) };
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "fetch failed";
@@ -57,7 +72,8 @@ export async function sendMagicLink(
   }
 
   return {
-    success: "Controlla la tua email per il link di accesso.",
+    success:
+      "Controlla la tua email e apri il link nello stesso browser dove hai richiesto l'accesso.",
   };
 }
 

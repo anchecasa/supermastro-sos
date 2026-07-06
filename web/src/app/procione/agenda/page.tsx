@@ -1,0 +1,57 @@
+import { createClient } from "@/lib/supabase/server";
+import { AgendaApp } from "@/components/procione/agenda-app";
+import type {
+  AssistantAppointment,
+  AssistantContact,
+  AssistantVoiceLog,
+} from "@/lib/procione/types";
+
+export default async function ProcioneAgendaPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user!.id)
+    .maybeSingle();
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endRange = new Date(startOfDay);
+  endRange.setDate(endRange.getDate() + 60);
+
+  const [{ data: appointments }, { data: contacts }, { data: voiceLog }, { data: googleTokens }] =
+    await Promise.all([
+    supabase
+      .from("assistant_appointments")
+      .select("*")
+      .gte("starts_at", startOfDay.toISOString())
+      .lte("starts_at", endRange.toISOString())
+      .order("starts_at", { ascending: true }),
+    supabase.from("assistant_contacts").select("*").order("full_name", { ascending: true }).limit(20),
+    supabase
+      .from("assistant_voice_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabase
+      .from("assistant_google_tokens")
+      .select("owner_id")
+      .eq("owner_id", user!.id)
+      .maybeSingle(),
+  ]);
+
+  return (
+    <AgendaApp
+      displayName={profile?.display_name ?? "Fernando"}
+      email={user!.email ?? ""}
+      googleConnected={Boolean(googleTokens)}
+      initialAppointments={(appointments ?? []) as AssistantAppointment[]}
+      initialContacts={(contacts ?? []) as AssistantContact[]}
+      initialVoiceLog={(voiceLog ?? []) as AssistantVoiceLog[]}
+    />
+  );
+}

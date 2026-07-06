@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 const NAV = [
   { href: "/admin", label: "Panoramica" },
+  { href: "/procione/agenda", label: "Agenda Procione" },
   { href: "/admin/talent", label: "Talent" },
   { href: "/admin/annunci", label: "Annunci" },
   { href: "/admin/monitor", label: "SOS live" },

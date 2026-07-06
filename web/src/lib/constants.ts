@@ -9,9 +9,9 @@ const ROLE_HOME: Record<UserRole, string> = {
 };
 
 const ROLE_ALLOWED_PREFIXES: Record<UserRole, string[]> = {
-  client: ["/supermastro", "/lavoro"],
+  client: ["/supermastro", "/lavoro", "/procione"],
   worker: ["/artigiano", "/supermastro", "/lavoro"],
-  admin: ["/admin"],
+  admin: ["/admin", "/procione"],
 };
 
 export function getDefaultHomePath(role: UserRole): string {
@@ -41,14 +41,14 @@ export function getAuthCallbackUrl(
   next?: string | null
 ): string {
   const base = role === "worker" ? "/artigiano" : "/supermastro";
-  const callback = `${origin}${base}/auth/callback`;
+  const confirm = `${origin}${base}/auth/confirm`;
   const safeNext = sanitizeAuthNextPath(next, role);
 
   if (safeNext) {
-    return `${callback}?next=${encodeURIComponent(safeNext)}`;
+    return `${confirm}?next=${encodeURIComponent(safeNext)}`;
   }
 
-  return callback;
+  return confirm;
 }
 
 export type AvailabilityType = "full_time" | "part_time" | "seasonal" | "flexible";

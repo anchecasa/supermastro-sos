@@ -57,7 +57,7 @@ if (serviceRole) {
 
 lines.push(
   "# Admin pilota (virgola separata)",
-  "ADMIN_EMAILS=anchecasa@anchecasa.it,amministrazione@anchecasa.it",
+  "ADMIN_EMAILS=palumbofernando12@gmail.com,anchecasa@anchecasa.it,amministrazione@anchecasa.it",
   "",
   "# Stripe test mode — https://dashboard.stripe.com/test/apikeys",
   "STRIPE_SECRET_KEY=",
