@@ -1,7 +1,7 @@
 import { LEGAL_ENTITY } from "@/lib/legal/constants";
 
 export function SuperMastroCookieContent() {
-  const { name, product, brand, privacyEmail } = LEGAL_ENTITY;
+  const { name, product, brand, infoEmail } = LEGAL_ENTITY;
 
   return (
     <>
@@ -25,7 +25,7 @@ export function SuperMastroCookieContent() {
         <h2>2. Titolare e contatti</h2>
         <p>
           Titolare: <strong>{name}</strong>. Per informazioni su cookie e privacy:{" "}
-          <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a>.
+          <a href={`mailto:${infoEmail}`}>{infoEmail}</a>.
         </p>
       </section>
 
@@ -81,7 +81,7 @@ export function SuperMastroCookieContent() {
           necessari all&apos;erogazione del servizio (es. infrastruttura cloud, CDN). Tali cookie
           rientrano prevalentemente nella categoria tecnica. L&apos;elenco aggiornato dei principali
           fornitori è disponibile su richiesta a{" "}
-          <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a>.
+          <a href={`mailto:${infoEmail}`}>{infoEmail}</a>.
         </p>
       </section>
 

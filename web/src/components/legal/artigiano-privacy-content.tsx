@@ -1,7 +1,7 @@
 import { LEGAL_ENTITY } from "@/lib/legal/constants";
 
 export function ArtigianoPrivacyContent() {
-  const { name, brand, seat, privacyEmail, infoEmail } = LEGAL_ENTITY;
+  const { name, brand, seat, infoEmail } = LEGAL_ENTITY;
 
   return (
     <>
@@ -13,8 +13,7 @@ export function ArtigianoPrivacyContent() {
           artigiani e professionisti (&quot;Mastri&quot;).
         </p>
         <p>
-          Contatti privacy: <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a> · Assistenza:{" "}
-          <a href={`mailto:${infoEmail}`}>{infoEmail}</a>
+          Contatti: <a href={`mailto:${infoEmail}`}>{infoEmail}</a>
         </p>
       </section>
 
@@ -95,7 +94,7 @@ export function ArtigianoPrivacyContent() {
         <p>
           L&apos;interessato può esercitare i diritti GDPR (accesso, rettifica, cancellazione,
           limitazione, portabilità, opposizione) scrivendo a{" "}
-          <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a> e proporre reclamo al Garante (
+          <a href={`mailto:${infoEmail}`}>{infoEmail}</a> e proporre reclamo al Garante (
           <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer">
             garanteprivacy.it
           </a>

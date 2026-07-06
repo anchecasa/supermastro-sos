@@ -35,6 +35,15 @@ async function logAdminAction(
   });
 }
 
+function revalidateAdminPaths() {
+  revalidatePath("/admin");
+  revalidatePath("/admin/talent");
+  revalidatePath("/admin/annunci");
+  revalidatePath("/admin/verifica");
+  revalidatePath("/admin/monitor");
+  revalidatePath("/admin/recruitment");
+}
+
 export async function approveWorker(workerId: string) {
   const user = await requireAdmin();
   const admin = createAdminClient();
@@ -45,7 +54,7 @@ export async function approveWorker(workerId: string) {
   });
   if (error) throw new Error(error.message);
   await logAdminAction(user.email!, "approve_worker", "worker", workerId);
-  revalidatePath("/admin/verifica");
+  revalidateAdminPaths();
 }
 
 export async function rejectWorker(workerId: string) {
@@ -58,7 +67,7 @@ export async function rejectWorker(workerId: string) {
   });
   if (error) throw new Error(error.message);
   await logAdminAction(user.email!, "reject_worker", "worker", workerId);
-  revalidatePath("/admin/verifica");
+  revalidateAdminPaths();
 }
 
 export async function requestCorrections(workerId: string) {
@@ -71,7 +80,31 @@ export async function requestCorrections(workerId: string) {
   });
   if (error) throw new Error(error.message);
   await logAdminAction(user.email!, "request_corrections", "worker", workerId);
-  revalidatePath("/admin/verifica");
+  revalidateAdminPaths();
+}
+
+export async function suspendWorker(workerId: string, note?: string) {
+  const user = await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("admin_suspend_worker", {
+    p_worker_id: workerId,
+    p_note: note ?? "suspended_by_admin",
+  });
+  if (error) throw new Error(error.message);
+  await logAdminAction(user.email!, "suspend_worker", "worker", workerId, { note });
+  revalidateAdminPaths();
+}
+
+export async function reactivateWorker(workerId: string, note?: string) {
+  const user = await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("admin_reactivate_worker", {
+    p_worker_id: workerId,
+    p_note: note ?? "reactivated_by_admin",
+  });
+  if (error) throw new Error(error.message);
+  await logAdminAction(user.email!, "reactivate_worker", "worker", workerId, { note });
+  revalidateAdminPaths();
 }
 
 export async function redispatchInvitations(requestId: string) {
@@ -95,7 +128,7 @@ export async function redispatchInvitations(requestId: string) {
       method: "POST",
     }).catch(() => null);
 
-    revalidatePath("/admin/monitor");
+    revalidateAdminPaths();
     return { count: count as number };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Errore" };
@@ -154,7 +187,7 @@ export async function buildJobShortlist(jobId: string) {
   await logAdminAction(user.email!, "build_job_shortlist", "job_request", jobId, {
     count,
   });
-  revalidatePath("/admin/recruitment");
+  revalidateAdminPaths();
   return count as number;
 }
 
@@ -166,7 +199,7 @@ export async function selectJobCandidate(candidateId: string) {
   });
   if (error) throw new Error(error.message);
   await logAdminAction(user.email!, "select_job_candidate", "job_candidate", candidateId);
-  revalidatePath("/admin/recruitment");
+  revalidateAdminPaths();
 }
 
 export async function approveJobRequest(jobId: string) {
@@ -179,5 +212,49 @@ export async function approveJobRequest(jobId: string) {
   if (error) throw new Error(error.message);
   await buildJobShortlist(jobId);
   await logAdminAction(user.email!, "approve_job_request", "job_request", jobId);
-  revalidatePath("/admin/recruitment");
+  revalidateAdminPaths();
+}
+
+export async function suspendJobRequest(jobId: string, note?: string) {
+  const user = await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("admin_suspend_job_request", {
+    p_job_id: jobId,
+    p_note: note ?? "suspended_by_admin",
+  });
+  if (error) throw new Error(error.message);
+  await logAdminAction(user.email!, "suspend_job_request", "job_request", jobId, { note });
+  revalidateAdminPaths();
+}
+
+export async function closeJobRequest(jobId: string, note?: string) {
+  const user = await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("admin_close_job_request", {
+    p_job_id: jobId,
+    p_note: note ?? "closed_by_admin",
+  });
+  if (error) throw new Error(error.message);
+  await logAdminAction(user.email!, "close_job_request", "job_request", jobId, { note });
+  revalidateAdminPaths();
+}
+
+export async function setEmployerStatus(
+  orgId: string,
+  status: "active" | "suspended",
+  note?: string
+) {
+  const user = await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("admin_set_employer_status", {
+    p_org_id: orgId,
+    p_status: status,
+    p_note: note ?? null,
+  });
+  if (error) throw new Error(error.message);
+  await logAdminAction(user.email!, "set_employer_status", "employer_organization", orgId, {
+    status,
+    note,
+  });
+  revalidateAdminPaths();
 }

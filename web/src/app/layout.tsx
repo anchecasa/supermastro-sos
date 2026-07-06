@@ -20,6 +20,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "AncheCasa — SuperMastro",
   description: "Lavoro, recruitment e SOS casa in tutta Italia — SuperMastro by AncheCasa",
+  icons: {
+    icon: [{ url: "/images/supermastro-mezzobusto.png", type: "image/png" }],
+    apple: "/images/supermastro-mezzobusto.png",
+  },
 };
 
 export default function RootLayout({

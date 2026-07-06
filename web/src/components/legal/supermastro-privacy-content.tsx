@@ -1,7 +1,7 @@
 import { LEGAL_ENTITY } from "@/lib/legal/constants";
 
 export function SuperMastroPrivacyContent() {
-  const { name, product, brand, seat, privacyEmail, infoEmail } = LEGAL_ENTITY;
+  const { name, product, brand, seat, infoEmail } = LEGAL_ENTITY;
 
   return (
     <>
@@ -13,11 +13,8 @@ export function SuperMastroPrivacyContent() {
           {seat}, titolare del marchio e della piattaforma digitale {brand}.
         </p>
         <p>
-          Per ogni richiesta relativa alla privacy e all&apos;esercizio dei diritti previsti dal
-          GDPR:{" "}
-          <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a>
-          <br />
-          Per assistenza generale sul servizio:{" "}
+          Per ogni richiesta relativa alla privacy, all&apos;esercizio dei diritti previsti dal GDPR
+          e per assistenza sul servizio:{" "}
           <a href={`mailto:${infoEmail}`}>{infoEmail}</a>
         </p>
       </section>
@@ -202,7 +199,7 @@ export function SuperMastroPrivacyContent() {
           fosse necessario un trasferimento verso Paesi terzi, {name} adotterà le garanzie previste
           dagli artt. 44-49 GDPR (decisioni di adeguatezza, Standard Contractual Clauses, misure
           supplementari). Informazioni dettagliate sono disponibili scrivendo a{" "}
-          <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a>.
+          <a href={`mailto:${infoEmail}`}>{infoEmail}</a>.
         </p>
       </section>
 
@@ -249,7 +246,7 @@ export function SuperMastroPrivacyContent() {
           prima della revoca.
         </p>
         <p>
-          Richieste: <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a> — oggetto
+          Richieste: <a href={`mailto:${infoEmail}`}>{infoEmail}</a> — oggetto
           &quot;Diritti GDPR – {product}&quot;. {name} risponderà entro i termini di legge (di
           regola 30 giorni).
         </p>
