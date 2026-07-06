@@ -57,7 +57,7 @@ export function TalentOnboardingForm({ defaultEmail, defaultTalentType }: Props)
     <form ref={formRef} action={action} className="space-y-5">
       <input type="hidden" name="talent_type" value={talentType} />
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => setTalentType("employee")}
@@ -116,7 +116,7 @@ export function TalentOnboardingForm({ defaultEmail, defaultTalentType }: Props)
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium">Telefono</label>
           <Input name="phone" type="tel" required className="mt-1" />
@@ -133,7 +133,7 @@ export function TalentOnboardingForm({ defaultEmail, defaultTalentType }: Props)
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium">CAP</label>
           <Input name="cap" required pattern="[0-9]{5}" placeholder="00100" className="mt-1" />
@@ -144,7 +144,7 @@ export function TalentOnboardingForm({ defaultEmail, defaultTalentType }: Props)
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium">Raggio km</label>
           <Input
@@ -181,8 +181,8 @@ export function TalentOnboardingForm({ defaultEmail, defaultTalentType }: Props)
       <fieldset>
         <legend className="text-sm font-medium">Competenze / mansioni</legend>
         <p className="mt-1 text-xs text-muted">
-          Seleziona tutte le tue competenze. Gli inviti SOS partono solo per idraulico, elettricista
-          e fabbro nelle zone pilota.
+          Seleziona tutte le tue competenze. Riceverai inviti SOS e opportunità di lavoro in base
+          alla tua zona e al raggio operativo.
         </p>
         <div className="mt-3 space-y-4">
           {sectors.map((sector) => (

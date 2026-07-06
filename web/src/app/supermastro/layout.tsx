@@ -18,7 +18,7 @@ export default function SuperMastroLayout({
         ctaHref="/supermastro/lavoro"
         ctaLabel="Cerco lavoro"
       />
-      <main>{children}</main>
+      <main className="min-w-0 overflow-x-clip">{children}</main>
     </div>
   );
 }

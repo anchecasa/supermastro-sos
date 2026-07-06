@@ -11,7 +11,7 @@ export default async function SuperMastroLoginPage({
   const nextPath = sanitizeAuthNextPath(params.next, "client");
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 px-4 py-8">
+    <div className="mx-auto w-full min-w-0 max-w-lg space-y-6 px-4 py-8 sm:max-w-xl sm:px-6">
       <Link href="/supermastro" className="text-sm text-muted transition-colors hover:text-foreground">
         ← Torna a SuperMastro
       </Link>

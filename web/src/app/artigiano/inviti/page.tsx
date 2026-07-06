@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { InvitationsList, type InvitationRow } from "@/components/artigiano/invitations-list";
+import { ContentPage } from "@/components/layout/content-page";
 import type { UrgencyLevel } from "@/lib/sos/constants";
 
 export default async function ArtigianoInvitiPage() {
@@ -22,14 +23,14 @@ export default async function ArtigianoInvitiPage() {
 
   if (!worker || worker.status !== "active") {
     return (
-      <div className="space-y-4">
+      <ContentPage size="sm">
         <Link href="/artigiano" className="text-sm text-amber-400 hover:underline">
           ← Area mastri
         </Link>
         <p className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400">
           Attiva il trial e completa la verifica per ricevere inviti SOS.
         </p>
-      </div>
+      </ContentPage>
     );
   }
 
@@ -37,9 +38,11 @@ export default async function ArtigianoInvitiPage() {
 
   if (error) {
     return (
-      <p className="rounded-lg bg-red-950 px-4 py-3 text-sm text-red-300">
-        {error.message}
-      </p>
+      <ContentPage size="sm">
+        <p className="rounded-lg bg-red-950 px-4 py-3 text-sm text-red-300">
+          {error.message}
+        </p>
+      </ContentPage>
     );
   }
 
@@ -62,7 +65,7 @@ export default async function ArtigianoInvitiPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <ContentPage size="sm">
       <Link href="/artigiano" className="text-sm text-amber-400 hover:underline">
         ← Area mastri
       </Link>
@@ -73,6 +76,6 @@ export default async function ArtigianoInvitiPage() {
         </p>
       </section>
       <InvitationsList invitations={invitations} />
-    </div>
+    </ContentPage>
   );
 }

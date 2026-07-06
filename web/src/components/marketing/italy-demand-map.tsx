@@ -68,11 +68,11 @@ export function ItalyDemandMap({ variant, className }: Props) {
   return (
     <div
       className={cn(
-        "relative w-full max-w-md overflow-hidden rounded-2xl surface-card",
+        "relative mx-auto w-full min-w-0 max-w-[min(100%,28rem)] overflow-hidden rounded-2xl surface-card sm:max-w-md",
         className
       )}
     >
-      <p className="absolute left-4 top-4 z-10 rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-muted shadow-sm">
+      <p className="absolute left-3 right-3 top-3 z-10 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full bg-white/95 px-2.5 py-1 text-center text-[10px] font-medium text-muted shadow-sm sm:left-4 sm:right-auto sm:px-3 sm:text-[11px]">
         Attività in tempo reale · Italia
       </p>
 
@@ -171,8 +171,8 @@ export function ItalyDemandMap({ variant, className }: Props) {
         ) : null}
       </svg>
 
-      <div className="border-t border-[var(--border)] bg-white px-4 py-3" aria-live="polite">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-brand">
+      <div className="border-t border-[var(--border)] bg-white px-3 py-3 sm:px-4" aria-live="polite">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-brand sm:text-[11px]">
           {variant === "client"
             ? "In tempo reale"
             : variant === "recruitment"
@@ -186,7 +186,7 @@ export function ItalyDemandMap({ variant, className }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
             transition={{ duration: 0.18 }}
-            className="mt-1 text-sm font-medium text-foreground"
+            className="mt-1 break-words text-sm font-medium text-foreground"
           >
             {active?.message.text} · {active?.message.place}
           </motion.p>

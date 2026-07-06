@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unlockMatchContact } from "@/app/artigiano/actions";
 import { MatchMediaGallery } from "@/components/artigiano/match-media-gallery";
 import { DisputeForm } from "@/components/dispute/dispute-form";
+import { ContentPage } from "@/components/layout/content-page";
 import { openDispute } from "@/app/artigiano/actions";
 
 export default async function ArtigianoMatchPage({
@@ -44,7 +45,7 @@ export default async function ArtigianoMatchPage({
   const { data: contact, error } = await unlockMatchContact(matchId);
 
   return (
-    <div className="space-y-6">
+    <ContentPage size="sm">
       <Link href="/artigiano/inviti" className="text-sm text-amber-400 hover:underline">
         ← Inviti
       </Link>
@@ -83,6 +84,6 @@ export default async function ArtigianoMatchPage({
       <MatchMediaGallery matchId={matchId} />
 
       <DisputeForm matchId={matchId} role="worker" submitDispute={openDispute} />
-    </div>
+    </ContentPage>
   );
 }

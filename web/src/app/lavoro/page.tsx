@@ -38,8 +38,8 @@ export default function LavoroPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-        <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
-          <div>
+        <div className="grid min-w-0 items-start gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className="min-w-0">
             <h2 className="text-2xl font-semibold">Per chi cerca lavoro</h2>
             <p className="mt-2 text-muted">
               Condomini, hotel e imprese cercano segretarie, fattorini, manutentori, operai e
@@ -50,7 +50,7 @@ export default function LavoroPage() {
               onboardingNext="/supermastro/profilo/onboarding"
             />
           </div>
-          <ItalyDemandMap variant="recruitment" className="lg:sticky lg:top-24" />
+          <ItalyDemandMap variant="recruitment" className="order-first w-full lg:order-none lg:sticky lg:top-24" />
         </div>
       </section>
 
@@ -60,8 +60,8 @@ export default function LavoroPage() {
             <div className="rounded-2xl surface-card p-6">
               <h3 className="font-semibold">Artigiano con Partita IVA</h3>
               <p className="mt-2 text-sm text-muted">
-                Profilo verificato, competenze, zone operative. Inviti SOS nelle zone pilota e
-                opportunità recruitment nationwide.
+                Profilo verificato, competenze, zone operative. Inviti SOS e opportunità di lavoro
+                in tutta Italia.
               </p>
             </div>
             <div className="rounded-2xl surface-card p-6">

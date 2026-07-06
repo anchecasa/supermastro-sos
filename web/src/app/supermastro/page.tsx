@@ -16,16 +16,11 @@ export default async function SuperMastroPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: pilotPublic } = await supabase.rpc("get_platform_flag", {
-    p_key: "pilot_public",
-  });
-
   const demoMode = isSosDemoMode();
 
   return (
     <>
       <SuperMastroLanding
-        isLive={pilotPublic === true}
         demoMode={demoMode}
         userEmail={user?.email}
         authError={params.auth === "error"}

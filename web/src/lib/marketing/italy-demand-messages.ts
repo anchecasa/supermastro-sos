@@ -7,7 +7,7 @@ export type DemandMessage = {
   regionId: string;
 };
 
-/** Messaggi demo — coordinate reali, distribuiti su più regioni */
+/** Messaggi — coordinate reali, distribuiti su più regioni */
 export const CLIENT_DEMAND_MESSAGES: DemandMessage[] = [
   {
     id: "trastevere-elettricista",

@@ -14,8 +14,8 @@ export function SuperMastroTerminiContent() {
           {seat} (&quot;Fornitore&quot; o &quot;Titolare&quot;).
         </p>
         <p>
-          Utilizzando {product} — inclusi wizard di richiesta, geolocalizzazione, area riservata e
-          modalità dimostrativa — l&apos;utente (&quot;Cliente&quot;) dichiara di aver letto,
+          Utilizzando {product} — inclusi wizard di richiesta, geolocalizzazione e area riservata —
+          l&apos;utente (&quot;Cliente&quot;) dichiara di aver letto,
           compreso e accettato integralmente i presenti Termini, l&apos;{" "}
           <a href="/supermastro/privacy">Informativa Privacy</a> e la{" "}
           <a href="/supermastro/cookie">Cookie Policy</a>.
@@ -40,10 +40,6 @@ export function SuperMastroTerminiContent() {
           <li>
             <strong>Match:</strong> abbinamento tra richiesta SOS e Artigiano disponibile nella zona
             indicata.
-          </li>
-          <li>
-            <strong>Modalità demo:</strong> percorso simulato che illustra le funzionalità senza
-            generare obblighi contrattuali né interventi reali, salvo diversa indicazione esplicita.
           </li>
           <li>
             <strong>Talent pool / Recruitment:</strong> servizio di iscrizione lavoratori (artigiani
@@ -71,9 +67,8 @@ export function SuperMastroTerminiContent() {
           L&apos;iscrizione al talent pool è gratuita per i candidati salvo diversa indicazione.
         </p>
         <p>
-          <strong>SOS vs recruitment:</strong> l&apos;iscrizione è valida in tutta Italia; il
-          servizio SOS urgente resta limitato alle zone pilota. Le opportunità recruitment operano su
-          base nazionale secondo CAP e raggio indicati.
+          <strong>SOS e recruitment:</strong> l&apos;iscrizione e il servizio SOS urgente operano in
+          tutta Italia, con match basato su competenze, CAP e raggio operativo indicati.
         </p>
       </section>
 
@@ -159,17 +154,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>9. Modalità dimostrativa (demo)</h2>
-        <p>
-          La demo consente di provare il flusso SOS con dati simulati o parzialmente locali al
-          browser. Non costituisce richiesta reale né genera obbligo di invio Artigiano. I contatti,
-          nomi e tempi mostrati in demo possono essere fittizi. L&apos;attivazione della demo non
-          sostituisce l&apos;accettazione dei Termini per l&apos;uso in produzione.
-        </p>
-      </section>
-
-      <section>
-        <h2>10. Prezzi, pagamenti e rapporto con l&apos;Artigiano</h2>
+        <h2>9. Prezzi, pagamenti e rapporto con l&apos;Artigiano</h2>
         <p>
           Salvo diversa indicazione esplicita sul sito, l&apos;invio della richiesta SOS tramite{" "}
           {product} <strong>non comporta costi verso {name}</strong> per il Cliente nella versione
@@ -181,7 +166,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>11. Obblighi e responsabilità del Cliente</h2>
+        <h2>10. Obblighi e responsabilità del Cliente</h2>
         <p>Il Cliente è responsabile:</p>
         <ul>
           <li>Dell&apos;uso lecito e conforme dei Termini;</li>
@@ -192,7 +177,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>12. Limitazione di responsabilità del Fornitore</h2>
+        <h2>11. Limitazione di responsabilità del Fornitore</h2>
         <p>
           Nei limiti massimi consentiti dalla legge applicabile, {name} non risponde di: (a) ritardi
           o impossibilità di match; (b) qualità, tempi o esito dell&apos;intervento eseguito
@@ -208,7 +193,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>13. Proprietà intellettuale</h2>
+        <h2>12. Proprietà intellettuale</h2>
         <p>
           Marchi, loghi, software, testi e layout di {brand} e {product} sono di titolarità di{" "}
           {name} o concessi in licenza. È vietata la riproduzione non autorizzata. Il Cliente
@@ -218,7 +203,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>14. Sospensione e recesso</h2>
+        <h2>13. Sospensione e recesso</h2>
         <p>
           {name} può sospendere o chiudere l&apos;accesso al servizio in caso di violazione dei
           Termini, richieste dell&apos;autorità o esigenze di sicurezza. Il Cliente può cessare
@@ -228,7 +213,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>15. Modifiche ai Termini</h2>
+        <h2>14. Modifiche ai Termini</h2>
         <p>
           Il Fornitore può aggiornare i Termini per adeguamenti normativi o evoluzioni del servizio.
           Le modifiche sostanziali saranno comunicate con mezzi idonei (avviso sul sito, email o
@@ -238,7 +223,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>16. Legge applicabile e foro competente</h2>
+        <h2>15. Legge applicabile e foro competente</h2>
         <p>
           I Termini sono regolati dalla <strong>legge italiana</strong>. Per ogni controversia è
           competente il foro del luogo di residenza o domicilio del consumatore, se applicabile il
@@ -248,7 +233,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>17. Clauole per consumatori (Italia)</h2>
+        <h2>16. Clauole per consumatori (Italia)</h2>
         <p>
           Ove il Cliente agisca in qualità di consumatore ai sensi del D.Lgs. 206/2005, restano
           applicabili le disposizioni imperative in materia di contratti a distanza, garanzie legali
@@ -267,7 +252,7 @@ export function SuperMastroTerminiContent() {
       </section>
 
       <section>
-        <h2>18. Contatti</h2>
+        <h2>17. Contatti</h2>
         <p>
           {name} — {brand} / {product}
           <br />

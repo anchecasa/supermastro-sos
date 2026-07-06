@@ -19,7 +19,7 @@ export default function ArtigianoLayout({
         ctaHref="/artigiano#iscrizione"
         ctaLabel="Iscriviti"
       />
-      <main>{children}</main>
+      <main className="min-w-0 overflow-x-clip">{children}</main>
     </div>
   );
 }

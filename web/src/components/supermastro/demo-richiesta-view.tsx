@@ -20,13 +20,13 @@ export function DemoRichiestaView({ requestId }: Props) {
     return (
       <div className="mx-auto max-w-lg space-y-4 px-4 py-8">
         <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Sessione demo scaduta. Avvia una nuova simulazione dalla home.
+          Richiesta non trovata o sessione scaduta. Avvia una nuova richiesta SOS.
         </p>
         <Link
-          href="/supermastro/nuova?demo=1"
+          href="/supermastro/nuova"
           className="inline-flex rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white"
         >
-          Nuova demo SOS
+          Nuova richiesta SOS
         </Link>
       </div>
     );

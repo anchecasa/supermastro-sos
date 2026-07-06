@@ -29,7 +29,7 @@ export function SuperMastroPrivacyContent() {
           utilizzano <strong>{product}</strong> — servizio di richiesta urgente di intervento
           artigianale (SOS) messo a disposizione da {brand} — attraverso il sito web, l&apos;area
           riservata e le funzionalità collegate (wizard di richiesta, geolocalizzazione, analisi
-          fotografica assistita, tracciamento stato richiesta, modalità dimostrativa).
+          fotografica assistita, tracciamento stato richiesta).
         </p>
         <p>
           {product} è destinato a <strong>clienti finali</strong> (privati o referenti aziendali)
@@ -57,9 +57,8 @@ export function SuperMastroPrivacyContent() {
           personale, CAP e recapiti — mediati fino al match con candidato accettato.
         </p>
         <p>
-          <strong>Disclaimer geo:</strong> l&apos;iscrizione al talent pool è aperta in tutta Italia;
-          il servizio SOS urgente per guasti in casa resta attivo solo nelle zone pilota indicate sul
-          sito.
+          <strong>Copertura geografica:</strong> l&apos;iscrizione al talent pool e il servizio SOS
+          urgente operano in tutta Italia, con match basato su competenze, CAP e raggio indicati.
         </p>
       </section>
 
@@ -226,11 +225,6 @@ export function SuperMastroPrivacyContent() {
           <li>
             <strong>Cookie:</strong> secondo quanto indicato nella{" "}
             <a href="/supermastro/cookie">Cookie Policy</a>.
-          </li>
-          <li>
-            <strong>Modalità demo:</strong> i dati inseriti in demo possono risiedere solo sul
-            dispositivo dell&apos;utente (sessionStorage) o essere trattati in modo simulato senza
-            persistenza su database di produzione, salvo diversa indicazione in interfaccia.
           </li>
         </ul>
         <p>Trascorsi i termini, i dati sono cancellati o resi anonimi in modo irreversibile.</p>

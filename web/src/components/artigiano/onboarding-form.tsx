@@ -47,7 +47,7 @@ export function WorkerOnboardingForm({ defaultEmail }: { defaultEmail?: string }
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium">Telefono</label>
           <Input name="phone" type="tel" required className="mt-1" />
@@ -64,7 +64,7 @@ export function WorkerOnboardingForm({ defaultEmail }: { defaultEmail?: string }
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium">CAP sede</label>
           <Input

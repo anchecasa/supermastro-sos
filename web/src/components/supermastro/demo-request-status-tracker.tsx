@@ -56,10 +56,6 @@ export function DemoRequestStatusTracker({ demoRequest }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-          Modalità demo — simulazione completa del flusso SOS
-        </div>
-
         <div className="space-y-1">
           <p className="text-xs font-medium uppercase tracking-wide text-blue-600">
             Stato richiesta
@@ -74,14 +70,13 @@ export function DemoRequestStatusTracker({ demoRequest }: Props) {
               {DEMO_STEPS[stepIndex]?.message}
             </p>
             <p className="text-sm font-medium text-zinc-700">
-              Tempo rimanente (demo): {countdown}
+              Tempo rimanente: {countdown}
             </p>
           </>
         )}
 
         <p className="text-xs text-zinc-400">
-          GPS: {demoRequest.lat.toFixed(5)}, {demoRequest.lng.toFixed(5)} ·{" "}
-          {demoRequest.zone_name}
+          Zona: {demoRequest.zone_name} ({demoRequest.city})
         </p>
       </div>
 

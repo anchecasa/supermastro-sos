@@ -2,7 +2,7 @@ import type { UrgencyLevel } from "@/lib/sos/constants";
 
 export const DEMO_REQUEST_ID_PREFIX = "demo-";
 
-/** Demo attiva di default; disabilita con NEXT_PUBLIC_SOS_DEMO_MODE=false */
+/** Flusso SOS senza login (default). Imposta NEXT_PUBLIC_SOS_DEMO_MODE=false per richiedere auth. */
 export function isSosDemoMode(): boolean {
   return process.env.NEXT_PUBLIC_SOS_DEMO_MODE !== "false";
 }
@@ -33,7 +33,7 @@ export type DemoRequestState = {
 export const DEMO_MATCHED_CONTACT = {
   display_name: "Marco B.",
   phone: "+39 333 482 9102",
-  email: "marco.b@demo.supermastro.it",
+  email: "marco.b@supermastro.it",
   skill_label: "Idraulico",
   distance_km: 2.4,
   eta_minutes: 35,

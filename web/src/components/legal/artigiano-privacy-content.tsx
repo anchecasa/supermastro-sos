@@ -27,8 +27,8 @@ export function ArtigianoPrivacyContent() {
           nationwide.
         </p>
         <p>
-          L&apos;iscrizione è aperta in tutta Italia. Il servizio SOS urgente resta attivo solo
-          nelle zone pilota indicate sul sito.
+          L&apos;iscrizione è aperta in tutta Italia. Il servizio SOS urgente e le opportunità di
+          lavoro operano su base nazionale in base a competenze e zona indicata.
         </p>
       </section>
 

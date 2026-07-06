@@ -19,10 +19,10 @@ export default async function AdminLayout({
   return (
     <div className="min-h-full bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 px-4 py-3">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="font-semibold">Admin SuperMastro</span>
-            <nav className="flex flex-wrap gap-3 text-sm">
+        <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <span className="shrink-0 font-semibold">Admin SuperMastro</span>
+            <nav className="flex flex-wrap gap-x-3 gap-y-2 text-sm">
               <a href="/admin/verifica" className="text-slate-400 hover:text-white">
                 Verifica
               </a>
@@ -43,10 +43,10 @@ export default async function AdminLayout({
               </a>
             </nav>
           </div>
-          <span className="text-xs text-slate-400">{user.email}</span>
+          <span className="truncate text-xs text-slate-400">{user.email}</span>
         </div>
       </header>
-      <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
+      <main className="mx-auto min-w-0 max-w-4xl overflow-x-clip px-4 py-8">{children}</main>
     </div>
   );
 }

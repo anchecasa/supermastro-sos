@@ -51,7 +51,7 @@ export function SiteHeader({
         className
       )}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
         <Link
           href={home}
           className="group flex shrink-0 items-center"
@@ -78,7 +78,7 @@ export function SiteHeader({
           )}
         </Link>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
           <Link
             href={secondaryHref}
             className="hidden text-xs font-medium text-muted transition-colors hover:text-foreground sm:inline"
@@ -89,7 +89,7 @@ export function SiteHeader({
             <Link
               href={ctaHref}
               className={cn(
-                "inline-flex h-9 items-center rounded-full px-4 text-xs font-semibold text-white shadow-sm transition",
+                "inline-flex h-9 max-w-[9.5rem] shrink items-center justify-center rounded-full px-3 text-center text-xs font-semibold leading-tight text-white shadow-sm transition sm:max-w-none sm:px-4",
                 product === "artigiano"
                   ? "bg-worker hover:bg-amber-600"
                   : "bg-brand hover:bg-blue-700"

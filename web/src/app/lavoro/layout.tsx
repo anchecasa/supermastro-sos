@@ -16,7 +16,7 @@ export default function LavoroLayout({ children }: { children: React.ReactNode }
         ctaHref="/lavoro/assumi"
         ctaLabel="Cerco personale"
       />
-      <main>{children}</main>
+      <main className="min-w-0 overflow-x-clip">{children}</main>
       <footer className="border-t border-[var(--border)] bg-white px-4 py-8 text-xs text-muted sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-foreground/80">AncheCasa — Talent Intelligence</p>

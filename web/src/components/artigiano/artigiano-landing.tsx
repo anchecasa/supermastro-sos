@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 const BENEFITS = [
   {
     title: "Opportunità in tutta Italia",
-    body: "Recruitment nationwide + inviti SOS nelle zone pilota per idraulico, elettricista e fabbro.",
+    body: "Recruitment e inviti SOS in tutta Italia per idraulico, elettricista, fabbro e altre competenze.",
   },
   {
     title: "Artigiano o dipendente",
@@ -37,8 +37,8 @@ export function ArtigianoLanding() {
   return (
     <>
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
-        <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
-          <div className="space-y-8">
+        <div className="grid min-w-0 items-start gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className="min-w-0 space-y-8">
             <div>
               <Badge variant="worker" className="mb-4">
                 Talent pool · AncheCasa
@@ -56,7 +56,7 @@ export function ArtigianoLanding() {
               onboardingNext="/supermastro/profilo/onboarding"
             />
           </div>
-          <ItalyDemandMap variant="recruitment" className="lg:sticky lg:top-24" />
+          <ItalyDemandMap variant="recruitment" className="order-first w-full lg:order-none lg:sticky lg:top-24" />
         </div>
       </section>
 

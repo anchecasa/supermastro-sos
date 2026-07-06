@@ -27,7 +27,6 @@ export function DemoMatchedContactCard({
       >
         Chiama {contact.phone}
       </a>
-      <p className="text-xs text-zinc-500">Simulazione demo — contatto fittizio</p>
     </div>
   );
 }

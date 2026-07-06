@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { deleteAccount, exportUserData } from "@/app/supermastro/actions";
+import { ContentPage } from "@/components/layout/content-page";
 
 export default function AccountPage() {
   const [pending, startTransition] = useTransition();
@@ -10,7 +11,7 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="space-y-6">
+    <ContentPage size="sm">
       <Link href="/supermastro" className="text-sm text-blue-600 hover:underline">
         ← SuperMastro
       </Link>
@@ -78,6 +79,6 @@ export default function AccountPage() {
           Termini
         </Link>
       </p>
-    </div>
+    </ContentPage>
   );
 }

@@ -23,7 +23,7 @@ const SERVICES = [
   },
   {
     title: "SOS casa",
-    body: "Emergenza domestica nelle zone pilota — inviti urgenti per mastri verificati.",
+    body: "Emergenza domestica in tutta Italia — inviti urgenti per mastri verificati.",
   },
 ] as const;
 
@@ -52,9 +52,11 @@ export default function SuperMastroLavoroPage() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:gap-12">
-          <TalentSignupModule variant="supermastro" />
-          <ItalyDemandMap variant="recruitment" className="lg:sticky lg:top-24" />
+        <div className="mt-10 grid items-start gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="min-w-0">
+            <TalentSignupModule variant="supermastro" />
+          </div>
+          <ItalyDemandMap variant="recruitment" className="order-first lg:order-none lg:sticky lg:top-24" />
         </div>
       </section>
 
@@ -71,7 +73,7 @@ export default function SuperMastroLavoroPage() {
 
       <section className="mx-auto max-w-6xl px-4 py-12 text-center sm:px-6">
         <p className="text-sm text-muted">Sei un datore di lavoro?</p>
-        <Button asChild variant="outline" className="mt-4">
+        <Button asChild variant="outline" className="mt-4 h-auto min-h-12 whitespace-normal px-4 py-3 text-center">
           <Link href="/lavoro/assumi">Cerco personale — condomini, hotel, ditte</Link>
         </Button>
       </section>

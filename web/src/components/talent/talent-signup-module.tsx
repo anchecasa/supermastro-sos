@@ -34,7 +34,7 @@ export function TalentSignupModule({
   );
 
   return (
-    <div id="iscrizione" className="rounded-2xl surface-card p-6 sm:p-8">
+    <div id="iscrizione" className="min-w-0 rounded-2xl surface-card p-4 sm:p-6 md:p-8">
       <h2 className="text-lg font-semibold">
         {variant === "anchecasa" ? "Iscriviti al talent pool" : "Iscriviti gratuitamente"}
       </h2>
@@ -44,7 +44,7 @@ export function TalentSignupModule({
           : "Muratore, segretaria, fattorino, idraulico — ti avvisiamo quando c'è lavoro in zona."}
       </p>
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
+      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => setTalentType("employee")}
@@ -151,8 +151,8 @@ export function TalentSignupModule({
         </div>
 
         <p className="text-xs text-muted">
-          Iscrizione aperta in tutta Italia. Il servizio SOS urgente per guasti in casa resta attivo
-          nelle zone pilota; le opportunità di lavoro recruitment sono nazionali.
+          Iscrizione e servizio SOS attivi in tutta Italia. Ti avvisiamo quando c&apos;è lavoro o
+          un&apos;emergenza in zona.
         </p>
 
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}

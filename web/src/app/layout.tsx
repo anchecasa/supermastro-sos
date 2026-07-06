@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,9 +12,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "AncheCasa — SuperMastro",
-  description: "Talent Intelligence per la manodopera — pilota SuperMastro",
+  description: "Lavoro, recruitment e SOS casa in tutta Italia — SuperMastro by AncheCasa",
 };
 
 export default function RootLayout({
@@ -27,7 +32,7 @@ export default function RootLayout({
       lang="it"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full min-w-0 flex-col overflow-x-clip">{children}</body>
     </html>
   );
 }

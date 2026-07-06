@@ -159,8 +159,8 @@ export default async function ProfiloPage() {
       )}
 
       <p className="text-xs text-muted">
-        SOS urgente attivo nelle zone pilota per idraulico, elettricista e fabbro. Le opportunità
-        recruitment sono disponibili in tutta Italia.
+        SOS urgente e opportunità di lavoro attivi in tutta Italia, in base a competenze e zona
+        operativa.
       </p>
     </div>
   );

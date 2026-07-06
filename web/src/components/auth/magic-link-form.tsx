@@ -29,7 +29,7 @@ export function MagicLinkForm({
   const isWorker = role === "worker";
 
   return (
-    <div className="rounded-2xl surface-card mx-auto w-full max-w-md">
+    <div className="min-w-0 rounded-2xl surface-card mx-auto w-full max-w-md">
       <CardHeader>
         <CardTitle className="text-xl">{title}</CardTitle>
         <CardDescription>{subtitle}</CardDescription>

@@ -53,8 +53,8 @@ export function SuperMastroCookieContent() {
           <li>Cookie di sicurezza e prevenzione CSRF;</li>
           <li>Memorizzazione preferenze essenziali (es. consenso cookie già espresso);</li>
           <li>
-            In modalità demo SOS: dati temporanei in <strong>sessionStorage</strong> del browser
-            per simulare il flusso senza account (non condivisi con terze parti).
+            Dati temporanei in <strong>sessionStorage</strong> del browser per il tracciamento
+            della richiesta SOS in corso (non condivisi con terze parti).
           </li>
         </ul>
 
@@ -116,8 +116,8 @@ export function SuperMastroCookieContent() {
               <td>Consenso preventivo</td>
             </tr>
             <tr>
-              <td>sessionStorage demo SOS</td>
-              <td>Simulazione richiesta in demo</td>
+              <td>sessionStorage richiesta SOS</td>
+              <td>Stato richiesta in corso nel wizard</td>
               <td>Fino a chiusura scheda browser</td>
               <td>Tecnico locale — non richiede consenso</td>
             </tr>

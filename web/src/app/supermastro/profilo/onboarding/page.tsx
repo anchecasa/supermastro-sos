@@ -19,7 +19,8 @@ export default async function ProfiloOnboardingPage() {
 
   if (worker?.status === "pending_verification") {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl surface-card p-6 text-center">
+      <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-8 sm:px-6">
+        <div className="rounded-2xl surface-card p-6 text-center">
         <p className="text-lg font-medium">Profilo in verifica</p>
         <p className="mt-2 text-sm text-muted">
           Ti avviseremo entro 48 ore lavorative quando sarà attivo nel talent pool.
@@ -27,6 +28,7 @@ export default async function ProfiloOnboardingPage() {
         <Link href="/supermastro/profilo" className="mt-4 inline-block text-sm text-brand underline">
           Vai al profilo
         </Link>
+        </div>
       </div>
     );
   }

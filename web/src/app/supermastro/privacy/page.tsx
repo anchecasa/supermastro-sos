@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPageShell } from "@/components/legal/legal-page-shell";
+import { ContentPage } from "@/components/layout/content-page";
 import { SuperMastroPrivacyContent } from "@/components/legal/supermastro-privacy-content";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="space-y-6">
+    <ContentPage>
       <Link href="/supermastro" className="text-sm text-brand hover:underline">
         ← SuperMastro
       </Link>
@@ -21,6 +22,6 @@ export default function PrivacyPage() {
       >
         <SuperMastroPrivacyContent />
       </LegalPageShell>
-    </div>
+    </ContentPage>
   );
 }
