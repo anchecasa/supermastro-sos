@@ -5,6 +5,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import pkg from "tweetsodium";
@@ -16,9 +17,11 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SECRET_KEYS = [
   "CLOUDFLARE_API_TOKEN",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_ACCESS_TOKEN",
   "SUPABASE_DB_PASSWORD",
   "SUPABASE_DB_URL",
+  "ADMIN_EMAILS",
   "NEXT_PUBLIC_SENTRY_DSN",
 ];
 
@@ -72,13 +75,22 @@ async function putSecret(pat, repo, name, value) {
   console.log(`   OK ${name}`);
 }
 
+function readOAuthToken() {
+  const appData = process.env.APPDATA || resolve(homedir(), "AppData", "Roaming");
+  const path = resolve(appData, "xdg.config", ".wrangler", "config", "default.toml");
+  if (!existsSync(path)) return null;
+  const raw = readFileSync(path, "utf8");
+  return raw.match(/oauth_token\s*=\s*"([^"]+)"/)?.[1] || null;
+}
+
 async function main() {
   const cfg = loadDeployConfig();
   const repo = cfg.github.repo;
   if (!repo) throw new Error("Repo non configurato");
 
   const sibling = loadSiblingAnchecasaEnv();
-  const values = { ...sibling };
+  const local = loadDotEnv(resolve(ROOT, "web", ".env.local"));
+  const values = { ...sibling, ...local };
 
   for (const k of SECRET_KEYS) {
     if (process.env[k]?.trim()) values[k] = process.env[k].trim();
@@ -86,6 +98,10 @@ async function main() {
 
   if (!values.NEXT_PUBLIC_SUPABASE_ANON_KEY && values.VITE_SUPABASE_PUBLISHABLE_KEY) {
     values.NEXT_PUBLIC_SUPABASE_ANON_KEY = values.VITE_SUPABASE_PUBLISHABLE_KEY;
+  }
+
+  if (!values.CLOUDFLARE_API_TOKEN) {
+    values.CLOUDFLARE_API_TOKEN = readOAuthToken();
   }
 
   if (!values.CLOUDFLARE_API_TOKEN) {
