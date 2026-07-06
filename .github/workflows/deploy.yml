@@ -54,24 +54,6 @@ jobs:
             exit 1
           fi
 
-      - name: Worker secrets (runtime)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          put_secret() {
-            local name="$1"
-            local value="$2"
-            if [ -n "$value" ]; then
-              echo "$value" | npx wrangler secret put "$name" --name "${{ env.CLOUDFLARE_WORKER_NAME }}"
-            fi
-          }
-          put_secret SUPABASE_SERVICE_ROLE_KEY "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-          put_secret STRIPE_SECRET_KEY "${{ secrets.STRIPE_SECRET_KEY }}"
-          put_secret STRIPE_WEBHOOK_SECRET "${{ secrets.STRIPE_WEBHOOK_SECRET }}"
-          put_secret CRON_SECRET "${{ secrets.CRON_SECRET }}"
-          put_secret ADMIN_EMAILS "${{ secrets.ADMIN_EMAILS }}"
-
       - name: Deploy Worker (OpenNext)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -79,7 +61,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://edsvmnxojsmknjuhobqa.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_SITE_URL: https://supermastro.anchecasa.it
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://anchecasa.it' }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
         run: npm run deploy
 
