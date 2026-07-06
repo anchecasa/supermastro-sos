@@ -5,7 +5,10 @@
   "compatibility_date": "2024-12-30",
   "workers_dev": true,
   "vars": {
-    "NEXT_PUBLIC_SUPABASE_URL": "https://edsvmnxojsmknjuhobqa.supabase.co"
+    "NEXT_PUBLIC_SUPABASE_URL": "https://edsvmnxojsmknjuhobqa.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_QbYv61SkMkjA9_GGb1hhOA_6v6GEw87",
+    "NEXT_PUBLIC_SITE_URL": "https://supermastro.anchecasa.it",
+    "ADMIN_EMAILS": "anchecasa@anchecasa.it,amministrazione@anchecasa.it"
   },
   "compatibility_flags": [
     "nodejs_compat",
