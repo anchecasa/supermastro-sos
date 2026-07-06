@@ -76,7 +76,10 @@ async function main() {
   }
 
   console.log(`→ Push origin ${branch}...`);
-  const push = git(["push", "origin", branch], { cwd: cfg.root });
+  const localBranch = git(["rev-parse", "--abbrev-ref", "HEAD"], { cwd: cfg.root }).stdout.trim();
+  const pushArgs =
+    localBranch === branch ? ["push", "origin", branch] : ["push", "origin", `HEAD:${branch}`];
+  const push = git(pushArgs, { cwd: cfg.root });
   if (push.status !== 0) {
     throw new Error(push.stderr || push.stdout || "push fallito");
   }

@@ -77,6 +77,12 @@ if (process.env.SUPABASE_DB_PASSWORD) {
   lines.push(`SUPABASE_DB_PASSWORD=${process.env.SUPABASE_DB_PASSWORD}`);
 }
 
+const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
+if (cloudflareToken) {
+  lines.push("", "# Cloudflare Workers deploy (wrangler / npm run deploy)", `CLOUDFLARE_API_TOKEN=${cloudflareToken}`);
+  lines.push("CLOUDFLARE_ACCOUNT_ID=ce7125d817d6c6ecd8c765b60ac4e0d0");
+}
+
 writeFileSync(target, lines.join("\n"), "utf8");
 console.log(`OK: scritto ${target}`);
 
@@ -91,6 +97,11 @@ const devVarsLines = [
 
 if (serviceRole) {
   devVarsLines.push(`SUPABASE_SERVICE_ROLE_KEY=${serviceRole}`);
+}
+
+if (cloudflareToken) {
+  devVarsLines.push(`CLOUDFLARE_API_TOKEN=${cloudflareToken}`);
+  devVarsLines.push("CLOUDFLARE_ACCOUNT_ID=ce7125d817d6c6ecd8c765b60ac4e0d0");
 }
 
 writeFileSync(devVarsTarget, `${devVarsLines.join("\n")}\n`, "utf8");
