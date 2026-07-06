@@ -54,6 +54,17 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare OpenNext env
+        env:
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          cat > .dev.vars <<EOF
+          NEXT_PUBLIC_SUPABASE_URL=https://edsvmnxojsmknjuhobqa.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+          NEXT_PUBLIC_SITE_URL=https://supermastro.anchecasa.it
+          EOF
+
       - name: Deploy Worker (OpenNext)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,5 +1,12 @@
 const PLACEHOLDER_HOST = "placeholder.supabase.co";
 const PLACEHOLDER_KEY = "placeholder-key";
+const DEFAULT_SUPABASE_URL = "https://edsvmnxojsmknjuhobqa.supabase.co";
+
+function resolveSupabaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (url && !url.includes(PLACEHOLDER_HOST)) return url;
+  return DEFAULT_SUPABASE_URL;
+}
 
 function resolveSupabaseKey(): string | undefined {
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
@@ -11,14 +18,8 @@ function resolveSupabaseKey(): string | undefined {
 }
 
 export function getSupabasePublicConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const url = resolveSupabaseUrl();
   const key = resolveSupabaseKey();
-
-  if (!url || url.includes(PLACEHOLDER_HOST)) {
-    throw new Error(
-      "Supabase non configurato. Verifica web/.env.local (NEXT_PUBLIC_SUPABASE_URL) e riavvia il dev server."
-    );
-  }
 
   if (!key) {
     throw new Error(
