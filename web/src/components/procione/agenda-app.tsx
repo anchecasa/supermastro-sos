@@ -4,13 +4,18 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
+  CalendarDays,
+  ChevronDown,
   ChevronRight,
   Home,
-  List,
+  Menu,
   Mic,
+  MoreHorizontal,
   Sparkles,
-  X,
+  Users,
 } from "lucide-react";
+import { AgendaTimelineCard } from "@/components/procione/agenda-timeline-card";
+import { AppointmentDetailSheet } from "@/components/procione/appointment-detail-sheet";
 import type {
   AssistantAppointment,
   AssistantContact,
@@ -30,13 +35,6 @@ import { cn } from "@/lib/utils";
 const PROCIONE_AVATAR = "/images/supermastro-mezzobusto.png";
 const ORANGE = "#F27131";
 
-const COLOR_BAR: Record<AssistantAppointment["color"], string> = {
-  orange: "bg-[#F27131]",
-  green: "bg-emerald-500",
-  blue: "bg-sky-500",
-  purple: "bg-violet-500",
-};
-
 type TabId = "agenda" | "ricevuti" | "crea";
 
 type AgendaAppProps = {
@@ -48,27 +46,11 @@ type AgendaAppProps = {
   initialVoiceLog: AssistantVoiceLog[];
 };
 
-function formatTime(iso: string) {
-  return new Intl.DateTimeFormat("it-IT", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
-
-function formatDate(iso: string) {
+function formatAgendaDayLabel(date: Date) {
   return new Intl.DateTimeFormat("it-IT", {
     day: "numeric",
     month: "long",
-    year: "numeric",
-  }).format(new Date(iso));
-}
-
-function formatShortDate(iso: string) {
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(iso));
+  }).format(date);
 }
 
 export function AgendaApp({
@@ -231,25 +213,32 @@ export function AgendaApp({
   return (
     <div className="relative mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#f3f4f6] shadow-xl">
       <ProcioneServiceWorkerRegister />
-      <header className="relative z-10 px-4 pb-3 pt-4" style={{ backgroundColor: ORANGE }}>
+      <header className="relative z-10 overflow-hidden px-4 pb-8 pt-4" style={{ backgroundColor: ORANGE }}>
         <div className="flex items-center justify-between text-white">
+          <button type="button" className="rounded-full p-2 hover:bg-white/10" aria-label="Menu">
+            <Menu className="h-5 w-5" />
+          </button>
           <h1 className="text-lg font-semibold tracking-tight">SuperMastro Admin</h1>
           <button type="button" className="rounded-full p-2 hover:bg-white/10" aria-label="Notifiche">
             <Bell className="h-5 w-5" />
           </button>
         </div>
+        <div
+          className="pointer-events-none absolute -bottom-6 left-0 right-0 h-12 rounded-[50%] bg-[#f3f4f6]"
+          aria-hidden
+        />
       </header>
 
-      <div className="relative z-10 -mt-1 px-4">
-        <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-md">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-orange-50">
+      <div className="relative z-10 -mt-10 px-4">
+        <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-md ring-1 ring-black/5">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-orange-50 ring-2 ring-[#F27131]/30">
             <Image src={PROCIONE_AVATAR} alt="SuperMastro Procione" fill className="object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-gray-900">{displayName}</p>
-            <p className="truncate text-xs text-gray-500">{email}</p>
+            <p className="truncate text-xs text-gray-500">Elettricista, Edilizia, Idraulica</p>
             <span
-              className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+              className="mt-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold text-white"
               style={{ backgroundColor: ORANGE }}
             >
               Procione attivo
@@ -327,12 +316,28 @@ export function AgendaApp({
 
         {tab === "agenda" && (
           <section>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-1 text-base font-semibold text-gray-900">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-1 text-base font-bold text-[#F27131]">
                 Agenda
-                <ChevronRight className="h-4 w-4 rotate-90 text-gray-400" />
+                <ChevronDown className="h-4 w-4 text-[#F27131]" />
               </h2>
-              <span className="text-xs text-gray-400">{todayAppointments.length} oggi</span>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs font-medium text-[#F27131]"
+              >
+                {formatAgendaDayLabel(new Date())}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="mb-4 flex items-center gap-4 border-b border-gray-100 pb-2 text-xs">
+              <button type="button" className="font-semibold text-[#F27131]">
+                Tutti
+              </button>
+              <button type="button" className="text-gray-400">
+                In sospeso
+              </button>
+              <span className="ml-auto text-gray-400">{todayAppointments.length} oggi</span>
             </div>
 
             {sortedAppointments.length === 0 ? (
@@ -356,41 +361,12 @@ export function AgendaApp({
                   style={{ backgroundColor: ORANGE }}
                 />
                 {sortedAppointments.map((appt) => (
-                  <div key={appt.id} className="relative mb-4">
-                    <span className="absolute -left-14 top-3 w-12 text-right text-xs font-medium text-gray-500">
-                      {formatTime(appt.starts_at)}
-                    </span>
-                    <span
-                      className="absolute -left-[1.65rem] top-3.5 h-3 w-3 rounded-full border-2 border-white shadow"
-                      style={{ backgroundColor: ORANGE }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSelected(appt)}
-                      className={cn(
-                        "w-full rounded-2xl bg-white p-4 text-left shadow-sm transition hover:shadow-md",
-                        selected?.id === appt.id && "ring-2 ring-[#F27131]/40"
-                      )}
-                    >
-                      <div className="flex gap-3">
-                        <span className={cn("mt-1 w-1 shrink-0 rounded-full", COLOR_BAR[appt.color])} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-semibold text-gray-900">{appt.title}</p>
-                            <span className="shrink-0 text-[10px] font-medium text-[#F27131]">
-                              {formatShortDate(appt.starts_at)}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs text-gray-500">
-                            {formatTime(appt.starts_at)} – {formatTime(appt.ends_at)}
-                            {appt.contact_name ? ` · ${appt.contact_name}` : ""}
-                          </p>
-                          {appt.location && <p className="mt-1 text-xs text-gray-400">{appt.location}</p>}
-                        </div>
-                        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-gray-300" />
-                      </div>
-                    </button>
-                  </div>
+                  <AgendaTimelineCard
+                    key={appt.id}
+                    appointment={appt}
+                    selected={selected?.id === appt.id}
+                    onSelect={() => setSelected(appt)}
+                  />
                 ))}
               </div>
             )}
@@ -543,65 +519,33 @@ export function AgendaApp({
       )}
 
       {selected && (
-        <div className="absolute inset-0 z-30 flex items-start justify-center bg-black/40 px-4 pt-24 backdrop-blur-sm">
-          <div className="relative w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              className="absolute right-4 top-4 rounded-full p-1 text-gray-400 hover:bg-gray-100"
-              aria-label="Chiudi"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="mx-auto -mt-16 mb-3 flex justify-center">
-              <div
-                className="relative h-24 w-24 overflow-hidden rounded-full border-4 bg-white shadow-lg"
-                style={{ borderColor: ORANGE }}
-              >
-                <Image src={PROCIONE_AVATAR} alt="Procione" fill className="object-cover" />
-              </div>
-            </div>
-
-            <p className="text-center text-lg font-semibold text-gray-900">
-              {formatTime(selected.starts_at)} — {selected.title}
-            </p>
-            <p className="mt-2 text-center text-sm text-gray-500">{formatDate(selected.starts_at)}</p>
-            {selected.contact_name && (
-              <p className="mt-2 text-center text-sm text-gray-600">Con {selected.contact_name}</p>
-            )}
-            {selected.location && <p className="mt-1 text-center text-sm text-gray-500">{selected.location}</p>}
-            {selected.description && (
-              <p className="mt-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-600">{selected.description}</p>
-            )}
-
-            <div className="mt-5 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700"
-              >
-                Chiudi
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => handleDelete(selected.id)}
-                className="flex-1 rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: ORANGE }}
-              >
-                Elimina
-              </button>
-            </div>
-          </div>
-        </div>
+        <AppointmentDetailSheet
+          appointment={selected}
+          onClose={() => setSelected(null)}
+          onDelete={() => handleDelete(selected.id)}
+          deleting={pending}
+        />
       )}
 
-      <div className="fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 border-t border-gray-200 bg-white/95 px-6 pb-6 pt-3 backdrop-blur">
+      <div
+        className={cn(
+          "fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 border-t border-gray-200 bg-white/95 px-4 pb-6 pt-3 backdrop-blur",
+          selected && "pointer-events-none opacity-40"
+        )}
+      >
         <div className="relative flex items-end justify-between">
-          <button type="button" className="flex flex-col items-center gap-1 text-gray-400">
+          <button type="button" className="flex flex-col items-center gap-1 text-[#F27131]">
             <Home className="h-5 w-5" />
-            <span className="text-[10px]">Home</span>
+            <span className="text-[10px] font-medium">Home</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab("agenda")}
+            className="flex flex-col items-center gap-1 text-gray-400"
+          >
+            <CalendarDays className="h-5 w-5" />
+            <span className="text-[10px]">Agenda</span>
           </button>
 
           <button
@@ -621,14 +565,24 @@ export function AgendaApp({
             <Mic className="h-7 w-7" />
           </button>
 
-          <button type="button" className="flex flex-col items-center gap-1 text-[#F27131]">
-            <List className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Agenda</span>
+          <button type="button" className="flex flex-col items-center gap-1 text-gray-400">
+            <Users className="h-5 w-5" />
+            <span className="text-[10px]">Fornitore</span>
+          </button>
+
+          <button type="button" className="flex flex-col items-center gap-1 text-gray-400">
+            <MoreHorizontal className="h-5 w-5" />
+            <span className="text-[10px]">Altro</span>
           </button>
         </div>
         <p className="mt-3 flex items-center justify-center gap-1 text-center text-[10px] text-gray-400">
           <Sparkles className="h-3 w-3" />
-          {listening ? "Ascolto… parla ora" : "Ehi Procione — comando vocale"}
+          {voice.statusHint ??
+            (listening || voice.processing
+              ? "Ascolto… parla ora"
+              : voice.wakeEnabled
+                ? "Di' «Ehi Procione, segna riunione domani alle 10»"
+                : "Chrome/Edge · clicca microfono o attiva Ehi Procione")}
         </p>
       </div>
     </div>

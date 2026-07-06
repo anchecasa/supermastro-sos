@@ -23,7 +23,10 @@ export async function POST(request: Request) {
   if (!transcript && audio instanceof Blob) {
     if (!isOpenAiConfigured()) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY non configurata per Whisper." },
+        {
+          error:
+            "Whisper non configurato. Usa Chrome/Edge: il browser trascrive in italiano senza OpenAI.",
+        },
         { status: 503 }
       );
     }

@@ -17,14 +17,66 @@ type UseProcioneVoiceOptions = {
   onListeningChange?: (listening: boolean) => void;
 };
 
+type SpeechRecognitionCtor = new () => {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((ev: { results: { isFinal: boolean; length: number; [i: number]: { transcript: string } | undefined }[] }) => void) | null;
+  onerror: ((ev: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+};
+
+function getSpeechRecognition(): SpeechRecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const win = window as Window & {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+  };
+  return win.SpeechRecognition ?? win.webkitSpeechRecognition ?? null;
+}
+
+function speechErrorMessage(code: string): string {
+  switch (code) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Microfono bloccato. Clicca l'icona lucchetto nella barra indirizzi e consenti il microfono.";
+    case "no-speech":
+      return "Non ho sentito nulla. Riprova parlando più vicino al microfono.";
+    case "network":
+      return "Riconoscimento vocale offline non disponibile. Usa Chrome e connessione attiva.";
+    case "aborted":
+      return "Ascolto interrotto.";
+    default:
+      return `Errore microfono: ${code}`;
+  }
+}
+
 function playBase64Audio(base64: string, mime = "audio/mpeg") {
   const audio = new Audio(`data:${mime};base64,${base64}`);
   void audio.play();
 }
 
-async function recordAudioBlob(maxMs = 8000): Promise<Blob> {
+function getRecorderMimeType(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  for (const type of ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"]) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return undefined;
+}
+
+async function ensureMicrophoneAccess(): Promise<void> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+  stream.getTracks().forEach((t) => t.stop());
+}
+
+async function recordAudioBlob(maxMs = 9000): Promise<Blob> {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const mimeType = getRecorderMimeType();
+  const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
   const chunks: Blob[] = [];
 
   return new Promise((resolve, reject) => {
@@ -33,13 +85,72 @@ async function recordAudioBlob(maxMs = 8000): Promise<Blob> {
     };
     recorder.onstop = () => {
       stream.getTracks().forEach((t) => t.stop());
-      resolve(new Blob(chunks, { type: "audio/webm" }));
+      if (!chunks.length) {
+        reject(new Error("Nessun audio registrato."));
+        return;
+      }
+      resolve(new Blob(chunks, { type: mimeType ?? chunks[0]?.type ?? "audio/webm" }));
     };
-    recorder.onerror = () => reject(new Error("Registrazione fallita"));
-    recorder.start();
+    recorder.onerror = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      reject(new Error("Registrazione fallita."));
+    };
+    recorder.start(250);
     setTimeout(() => {
       if (recorder.state !== "inactive") recorder.stop();
     }, maxMs);
+  });
+}
+
+async function listenOnceSpeech(maxMs = 10000): Promise<string> {
+  const Ctor = getSpeechRecognition();
+  if (!Ctor) {
+    throw new Error("Usa Chrome o Edge su PC per i comandi vocali.");
+  }
+
+  await ensureMicrophoneAccess();
+
+  return new Promise((resolve, reject) => {
+    const recognition = new Ctor();
+    recognition.lang = "it-IT";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    let finished = false;
+    const finish = (fn: () => void) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      fn();
+    };
+
+    const timer = window.setTimeout(() => {
+      recognition.stop();
+      finish(() => reject(new Error("Tempo scaduto. Di' il comando entro 10 secondi.")));
+    }, maxMs);
+
+    recognition.onresult = (event) => {
+      const text = event.results[0]?.[0]?.transcript?.trim() ?? "";
+      finish(() => {
+        if (!text) reject(new Error("Non ho capito. Riprova."));
+        else resolve(text);
+      });
+    };
+
+    recognition.onerror = (event) => {
+      finish(() => reject(new Error(speechErrorMessage(event.error))));
+    };
+
+    recognition.onend = () => {
+      finish(() => reject(new Error("Non ho sentito nulla. Riprova.")));
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      finish(() => reject(new Error("Impossibile avviare il riconoscimento vocale.")));
+    }
   });
 }
 
@@ -54,6 +165,37 @@ async function sendVoiceToApi(audio?: Blob, transcript?: string): Promise<VoiceR
   return data;
 }
 
+async function transcribeCommand(): Promise<{ transcript?: string; audio?: Blob }> {
+  try {
+    const transcript = await listenOnceSpeech();
+    return { transcript };
+  } catch (speechErr) {
+    const cfg = (await fetch("/api/procione/voice").then((r) => r.json())) as { whisper?: boolean };
+    if (!cfg.whisper) throw speechErr;
+    const audio = await recordAudioBlob();
+    return { audio };
+  }
+}
+
+const WAKE_PATTERNS = [
+  /ehi\s+procione/i,
+  /hey\s+procione/i,
+  /ei\s+procione/i,
+  /ok\s+procione/i,
+  /procione[, ]/i,
+];
+
+function containsWakePhrase(text: string): boolean {
+  return WAKE_PATTERNS.some((re) => re.test(text));
+}
+
+function extractCommandAfterWake(text: string): string {
+  return text
+    .replace(/^.*?(ehi|hey|ei|ok)\s+procione[,:\s]*/i, "")
+    .replace(/^procione[,:\s]*/i, "")
+    .trim();
+}
+
 export function useProcioneVoice({
   onResult,
   onError,
@@ -62,29 +204,38 @@ export function useProcioneVoice({
 }: UseProcioneVoiceOptions) {
   const [wakeEnabled, setWakeEnabled] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const wakeRef = useRef<{ stop: () => void } | null>(null);
+  const [statusHint, setStatusHint] = useState<string | null>(null);
+  const wakeRef = useRef<{ stop: () => void; active: boolean } | null>(null);
   const busyRef = useRef(false);
 
   const runPipeline = useCallback(
-    async (transcript?: string) => {
+    async (knownTranscript?: string) => {
       if (busyRef.current) return;
       busyRef.current = true;
       setProcessing(true);
       onListeningChange?.(true);
+      setStatusHint("Ascolto…");
+
       try {
         let result: VoiceResult;
-        if (transcript) {
-          result = await sendVoiceToApi(undefined, transcript);
+        if (knownTranscript) {
+          setStatusHint("Elaboro…");
+          result = await sendVoiceToApi(undefined, knownTranscript);
         } else {
-          const blob = await recordAudioBlob();
-          result = await sendVoiceToApi(blob);
+          const captured = await transcribeCommand();
+          setStatusHint("Elaboro…");
+          result = await sendVoiceToApi(captured.audio, captured.transcript);
         }
+
         if (result.audioBase64) {
           playBase64Audio(result.audioBase64, result.audioMime);
         }
         onResult(result);
+        setStatusHint(null);
       } catch (err) {
-        onError(err instanceof Error ? err.message : "Errore vocale");
+        const msg = err instanceof Error ? err.message : "Errore vocale";
+        setStatusHint(null);
+        onError(msg);
       } finally {
         busyRef.current = false;
         setProcessing(false);
@@ -99,19 +250,9 @@ export function useProcioneVoice({
   }, [runPipeline]);
 
   const startPhraseWakeWord = useCallback(() => {
-    type SR = new () => {
-      lang: string;
-      continuous: boolean;
-      interimResults: boolean;
-      onresult: ((ev: { results: SpeechRecognitionResultList }) => void) | null;
-      onerror: (() => void) | null;
-      start: () => void;
-      stop: () => void;
-    };
-    const win = window as Window & { SpeechRecognition?: SR; webkitSpeechRecognition?: SR };
-    const Ctor = win.SpeechRecognition || win.webkitSpeechRecognition;
+    const Ctor = getSpeechRecognition();
     if (!Ctor) {
-      onError("Wake word non supportata in questo browser.");
+      onError("Wake word richiede Chrome o Edge su PC.");
       return null;
     }
 
@@ -119,29 +260,75 @@ export function useProcioneVoice({
     recognition.lang = "it-IT";
     recognition.continuous = true;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
-    recognition.onresult = (event) => {
-      for (let i = event.results.length - 1; i >= 0; i--) {
-        const text = event.results[i]?.[0]?.transcript?.toLowerCase() ?? "";
-        if (text.includes("ehi procione") || text.includes("hey procione")) {
-          onWake?.();
-          recognition.stop();
-          void runPipeline(text.replace(/.*?(ehi|hey)\s+procione[, ]?/i, "").trim() || undefined);
-          break;
-        }
+    const state = { active: true, recognition };
+
+    const restart = () => {
+      if (!state.active) return;
+      try {
+        recognition.start();
+        setStatusHint("Ehi Procione attivo — di' il comando");
+      } catch {
+        window.setTimeout(restart, 800);
       }
     };
 
-    recognition.onerror = () => {
-      /* riavvio silenzioso */
+    recognition.onresult = (event) => {
+      for (let i = event.results.length - 1; i >= 0; i--) {
+        if (!event.results[i]?.isFinal) continue;
+        const text = event.results[i]?.[0]?.transcript ?? "";
+        if (!containsWakePhrase(text)) continue;
+
+        onWake?.();
+        state.active = false;
+        recognition.stop();
+
+        const inlineCommand = extractCommandAfterWake(text);
+        void runPipeline(inlineCommand || undefined);
+        break;
+      }
     };
 
-    recognition.start();
-    return { stop: () => recognition.stop() };
+    recognition.onerror = (event) => {
+      if (event.error === "no-speech" || event.error === "aborted") {
+        restart();
+        return;
+      }
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        state.active = false;
+        onError(speechErrorMessage(event.error));
+        return;
+      }
+      restart();
+    };
+
+    recognition.onend = () => {
+      if (state.active) restart();
+    };
+
+    restart();
+
+    return {
+      active: true,
+      stop: () => {
+        state.active = false;
+        recognition.abort();
+        setStatusHint(null);
+      },
+    };
   }, [onError, onWake, runPipeline]);
 
   const enableWakeWord = useCallback(async () => {
     if (wakeRef.current) return;
+
+    try {
+      await ensureMicrophoneAccess();
+    } catch {
+      onError("Consenti l'accesso al microfono per usare Ehi Procione.");
+      return;
+    }
+
     const picovoiceKey = process.env.NEXT_PUBLIC_PICOVOICE_ACCESS_KEY;
     const keywordPath = process.env.NEXT_PUBLIC_PICOVOICE_KEYWORD_PATH;
 
@@ -164,26 +351,32 @@ export function useProcioneVoice({
 
         await WebVoiceProcessor.subscribe(porcupine);
         wakeRef.current = {
+          active: true,
           stop: () => {
             void WebVoiceProcessor.unsubscribe(porcupine);
             porcupine.terminate();
+            setStatusHint(null);
           },
         };
         setWakeEnabled(true);
+        setStatusHint("Ehi Procione attivo (Picovoice)");
         return;
       } catch {
         /* fallback phrase */
       }
     }
 
-    wakeRef.current = startPhraseWakeWord();
-    setWakeEnabled(Boolean(wakeRef.current));
-  }, [onWake, runPipeline, startPhraseWakeWord]);
+    const handle = startPhraseWakeWord();
+    if (!handle) return;
+    wakeRef.current = handle;
+    setWakeEnabled(true);
+  }, [onError, onWake, runPipeline, startPhraseWakeWord]);
 
   const disableWakeWord = useCallback(() => {
     wakeRef.current?.stop();
     wakeRef.current = null;
     setWakeEnabled(false);
+    setStatusHint(null);
   }, []);
 
   useEffect(() => {
@@ -195,6 +388,7 @@ export function useProcioneVoice({
   return {
     wakeEnabled,
     processing,
+    statusHint,
     enableWakeWord,
     disableWakeWord,
     startManualVoice,

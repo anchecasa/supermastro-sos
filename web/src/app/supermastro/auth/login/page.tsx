@@ -20,8 +20,8 @@ export default async function SuperMastroLoginPage({
         title={nextPath?.startsWith("/procione") ? "Accedi a Procione Agenda" : "Accedi a SuperMastro"}
         subtitle={
           nextPath?.startsWith("/procione")
-            ? "Area riservata admin. Ti invieremo un link sicuro via email."
-            : "Ti invieremo un link sicuro via email. Nessuna password."
+            ? "Area riservata admin. Genera il link e clicca Entra ora."
+            : "Genera un link sicuro. Nessuna password."
         }
         privacyLabel="Ho letto e accetto l'informativa privacy e i termini del servizio cliente SOS."
         nextPath={nextPath}

@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdminEmail } from "@/lib/admin";
 import {
   getAuthCallbackUrl,
   REGISTRATION_CONSENT_PURPOSE,
@@ -12,6 +14,7 @@ import { redirect } from "next/navigation";
 export type AuthActionState = {
   error?: string;
   success?: string;
+  directLink?: string;
 };
 
 function translateAuthError(message: string): string {
@@ -32,12 +35,16 @@ export async function sendMagicLink(
   _prev: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
-  const email = String(formData.get("email") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = String(formData.get("role") ?? "client") as UserRole;
   const next = String(formData.get("next") ?? "").trim() || null;
 
   if (!email) {
     return { error: "Inserisci la tua email." };
+  }
+
+  if (next?.startsWith("/procione") && !isAdminEmail(email)) {
+    return { error: "Questa area è riservata agli admin Procione." };
   }
 
   const headersList = await headers();
@@ -47,34 +54,39 @@ export async function sendMagicLink(
     "http://localhost:3000";
 
   try {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithOtp({
+    const redirectTo = getAuthCallbackUrl(role, origin, next);
+    const admin = createAdminClient();
+
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "magiclink",
       email,
-      options: {
-        emailRedirectTo: getAuthCallbackUrl(role, origin, next),
-        shouldCreateUser: true,
-        data: { role },
-      },
+      options: { redirectTo },
     });
 
-    if (error) {
-      return { error: translateAuthError(error.message) };
+    if (error || !data?.properties?.hashed_token) {
+      return { error: translateAuthError(error?.message ?? "Link non generato.") };
     }
+
+    const joiner = redirectTo.includes("?") ? "&" : "?";
+    const directLink = `${redirectTo}${joiner}token_hash=${encodeURIComponent(data.properties.hashed_token)}&type=magiclink`;
+
+    return {
+      success: "Clicca il pulsante verde qui sotto per entrare (link valido una sola volta).",
+      directLink,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "fetch failed";
+    if (message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+      return { error: "Configura SUPABASE_SERVICE_ROLE_KEY in web/.env.local" };
+    }
     if (message.includes("fetch failed") || message.includes("ENOTFOUND")) {
       return {
         error:
-          "Impossibile contattare Supabase. Verifica web/.env.local e riavvia il dev server (npm run dev).",
+          "Impossibile contattare Supabase. Verifica web/.env.local e riavvia il dev server.",
       };
     }
     return { error: message };
   }
-
-  return {
-    success:
-      "Controlla la tua email e apri il link nello stesso browser dove hai richiesto l'accesso.",
-  };
 }
 
 export async function signOut(redirectTo: string) {
