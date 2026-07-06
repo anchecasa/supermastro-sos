@@ -54,23 +54,6 @@ jobs:
             exit 1
           fi
 
-      - name: Worker secrets (runtime)
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          put_secret() {
-            local name="$1"
-            local value="$2"
-            if [ -n "$value" ]; then
-              echo "$value" | npx wrangler secret put "$name" --name "${{ env.CLOUDFLARE_WORKER_NAME }}"
-            fi
-          }
-          put_secret SUPABASE_SERVICE_ROLE_KEY "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-          put_secret ADMIN_EMAILS "${{ secrets.ADMIN_EMAILS }}"
-          put_secret STRIPE_SECRET_KEY "${{ secrets.STRIPE_SECRET_KEY }}"
-          put_secret STRIPE_WEBHOOK_SECRET "${{ secrets.STRIPE_WEBHOOK_SECRET }}"
-          put_secret CRON_SECRET "${{ secrets.CRON_SECRET }}"
-
       - name: Deploy Worker (OpenNext)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -81,6 +64,21 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://supermastro.anchecasa.it
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
         run: npm run deploy
+
+      - name: Smoke test Worker
+        run: |
+          check_url() {
+            local url="$1"
+            local code
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$url" || echo "000")
+            echo "$url → HTTP $code"
+            case "$code" in
+              200|301|302|307|308) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+          check_url "https://supermastro.anchecasa.it/supermastro"
+          check_url "https://supermastro-sos.palumbofernando12.workers.dev/supermastro"
 
   supabase-functions:
     name: Supabase Edge Functions
