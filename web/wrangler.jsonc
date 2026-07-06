@@ -20,11 +20,5 @@
   ],
   "images": {
     "binding": "IMAGES"
-  },
-  "routes": [
-    {
-      "pattern": "supermastro.anchecasa.it/*",
-      "zone_name": "anchecasa.it"
-    }
-  ]
+  }
 }
