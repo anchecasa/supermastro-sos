@@ -1,0 +1,9 @@
+# Wrangler / OpenNext preview — copia in .dev.vars (non committare)
+# Genera automaticamente con: node ../scripts/setup-env.mjs
+
+NEXTJS_ENV=development
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-or-publishable-key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key

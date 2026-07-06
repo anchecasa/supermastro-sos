@@ -1,0 +1,26 @@
+{
+  "name": "supermastro-sos-root",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup:env": "node scripts/setup-env.mjs",
+    "configure:supabase": "node scripts/configure-supabase.mjs",
+    "update:db-password": "node scripts/update-supabase-db-password.mjs",
+    "sync:supabase": "node scripts/update-supabase-db-password.mjs && node scripts/configure-supabase.mjs && node scripts/apply-migrations.mjs",
+    "setup:all": "node scripts/do-all-setup.mjs",
+    "db:push": "node scripts/apply-migrations.mjs",
+    "test:security": "node scripts/run-security-tests.mjs",
+    "audit:rls": "node scripts/rls-audit.mjs",
+    "seed:staging": "node scripts/seed-staging-workers.mjs",
+    "smoke:staging": "node scripts/smoke-staging.mjs",
+    "dev": "npm run dev --prefix web",
+    "build": "npm run build --prefix web",
+    "deploy": "npm run deploy --prefix web",
+    "deploy:config": "node scripts/deploy-config.mjs",
+    "aggiorna": "node scripts/aggiorna.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.0",
+    "pg": "^8.16.0"
+  }
+}

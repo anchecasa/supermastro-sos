@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.open-next/
+.env
+.env.local
+web/.env.local
+web/.dev.vars
+web/.env.secrets.local
+.vercel
+*.log
+.DS_Store

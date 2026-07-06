@@ -1,0 +1,33 @@
+{
+  "name": "supermastro-sos",
+  "github": {
+    "repo": "anchecasa/supermastro-sos",
+    "branch": "main"
+  },
+  "cloudflare": {
+    "accountId": "ce7125d817d6c6ecd8c765b60ac4e0d0",
+    "workerName": "supermastro-sos",
+    "siteUrl": "https://supermastro-sos.anchecasa.workers.dev",
+    "stagingUrl": "https://supermastro-sos.anchecasa.workers.dev",
+    "productionRoutes": [
+      "anchecasa.it/supermastro*",
+      "anchecasa.it/sos*",
+      "anchecasa.it/artigiano*",
+      "anchecasa.it/admin*"
+    ]
+  },
+  "supabase": {
+    "projectRef": "edsvmnxojsmknjuhobqa",
+    "url": "https://edsvmnxojsmknjuhobqa.supabase.co",
+    "region": "eu-west-1"
+  },
+  "urls": {
+    "canonical": "https://anchecasa.it/supermastro",
+    "artigiano": "https://anchecasa.it/artigiano",
+    "aliasSos": "https://anchecasa.it/sos"
+  },
+  "workflows": {
+    "deploy": "deploy.yml",
+    "setup": "setup-integrazioni.yml"
+  }
+}

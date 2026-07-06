@@ -1,0 +1,30 @@
+# SuperMastro — Supabase local config (pilota)
+# Docs: https://supabase.com/docs/guides/cli/config
+
+project_id = "supermastro-pilot"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "extensions"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000/supermastro/auth/callback",
+  "http://localhost:3000/artigiano/auth/callback",
+]
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
