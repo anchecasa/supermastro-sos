@@ -17,10 +17,13 @@
     "build": "npm run build --prefix web",
     "deploy": "npm run deploy --prefix web",
     "deploy:config": "node scripts/deploy-config.mjs",
-    "aggiorna": "node scripts/aggiorna.mjs"
+    "aggiorna": "node scripts/aggiorna.mjs",
+    "sync:secrets": "node scripts/sync-github-secrets.mjs",
+    "github:ensure": "node scripts/ensure-github-repo.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
-    "pg": "^8.16.0"
+    "pg": "^8.16.0",
+    "tweetsodium": "^0.0.4"
   }
 }

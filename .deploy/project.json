@@ -7,8 +7,10 @@
   "cloudflare": {
     "accountId": "ce7125d817d6c6ecd8c765b60ac4e0d0",
     "workerName": "supermastro-sos",
-    "siteUrl": "https://supermastro-sos.anchecasa.workers.dev",
-    "stagingUrl": "https://supermastro-sos.anchecasa.workers.dev",
+    "siteUrl": "https://supermastro.anchecasa.it",
+    "stagingUrl": "https://supermastro-sos.palumbofernando12.workers.dev",
+    "adminUrl": "https://supermastro.anchecasa.it/admin",
+    "workersDevUrl": "https://supermastro-sos.palumbofernando12.workers.dev",
     "productionRoutes": [
       "anchecasa.it/supermastro*",
       "anchecasa.it/sos*",

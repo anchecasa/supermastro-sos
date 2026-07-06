@@ -15,6 +15,7 @@ Stack: **Next.js 16** su **Cloudflare Workers** (`@opennextjs/cloudflare`) + **S
 | `npm run db:push` | Migrazioni SQL su Supabase remoto (locale) |
 | `npm run build` | Build Next.js |
 | `npm run deploy` | Build OpenNext + deploy Worker (richiede `wrangler login` o `CLOUDFLARE_API_TOKEN`) |
+| `npm run sync:secrets` | Carica secret su GitHub (richiede `CLOUDFLARE_API_TOKEN` in env) |
 | `node scripts/aggiorna.mjs` | Commit + push + attende CI |
 | `node scripts/trigger-github-workflow.mjs setup` | Primo setup completo (migrazioni + functions + secrets + deploy) |
 
@@ -22,7 +23,7 @@ Stack: **Next.js 16** su **Cloudflare Workers** (`@opennextjs/cloudflare`) + **S
 
 | Secret | Obbligatorio | Uso |
 |--------|:------------:|-----|
-| `CLOUDFLARE_API_TOKEN` | Sì | Deploy Worker (permesso Workers Scripts Edit) |
+| `CLOUDFLARE_API_TOKEN` | Sì | Deploy Worker — serve permesso **Account → Workers Scripts → Edit** (non basta Pages Edit) |
 | `SUPABASE_ACCESS_TOKEN` | Sì | Migrazioni + Edge Functions |
 | `SUPABASE_DB_PASSWORD` | Sì | `supabase db push` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sì | Build frontend |
