@@ -52,7 +52,37 @@ async function main() {
   }
   console.log(`   OK zone ${zone.id}`);
 
-  console.log(`→ Custom domain ${HOSTNAME} → ${workerName}...`);
+  console.log(`→ DNS ${HOSTNAME}...`);
+  try {
+    const existing = await cfApi(
+      token,
+      `/zones/${zone.id}/dns_records?type=CNAME&name=supermastro`,
+    );
+    if (existing.result?.length) {
+      console.log("   OK record DNS già presente");
+    } else {
+      await cfApi(token, `/zones/${zone.id}/dns_records`, {
+        method: "POST",
+        body: {
+          type: "CNAME",
+          name: "supermastro",
+          content: "supermastro-sos.palumbofernando12.workers.dev",
+          proxied: true,
+          ttl: 1,
+        },
+      });
+      console.log("   OK record DNS CNAME creato");
+    }
+  } catch (e) {
+    const msg = String(e.message || e);
+    if (msg.includes("81057") || msg.includes("already exists")) {
+      console.log("   OK record DNS già presente");
+    } else {
+      throw e;
+    }
+  }
+
+  console.log(`→ Route Worker ${HOSTNAME} → ${workerName}...`);
   try {
     await cfApi(token, `/accounts/${accountId}/workers/domains`, {
       method: "POST",
@@ -68,6 +98,8 @@ async function main() {
     const msg = String(e.message || e);
     if (msg.includes("already exists") || msg.includes("1061") || msg.includes("81053")) {
       console.log("   OK custom domain già presente");
+    } else if (msg.includes("10405")) {
+      console.log("   skip custom domain API (wrangler route gestisce il routing)");
     } else {
       throw e;
     }

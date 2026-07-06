@@ -23,9 +23,8 @@
   },
   "routes": [
     {
-      "pattern": "supermastro.anchecasa.it",
-      "zone_name": "anchecasa.it",
-      "custom_domain": true
+      "pattern": "supermastro.anchecasa.it/*",
+      "zone_name": "anchecasa.it"
     }
   ]
 }
