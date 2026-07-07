@@ -2,6 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildBusinessContextBlock } from "@/lib/procione/analytics";
 import { demoSnapshotToBusinessSnapshot } from "@/lib/procione/demo-snapshot";
 import type { ProcioneDataMode, ProcioneDemoSnapshot } from "@/lib/procione/session";
+import {
+  buildMemoryContextBlock,
+  loadUserMemory,
+  type UserMemory,
+} from "@/lib/procione/user-memory";
 
 export type AgendaQueryPeriod = "today" | "tomorrow" | "day_after_tomorrow" | "week";
 
@@ -70,6 +75,7 @@ export type ProcioneUserContext = {
   business?: ProcioneBusinessSnapshot;
   summaryText: string;
   contextBlock: string;
+  userMemory: UserMemory;
 };
 
 type AppointmentRow = {
@@ -222,7 +228,8 @@ function buildContextBlock(
   ops: ProcioneOpsSnapshot,
   recentVoiceLog: ProcioneUserContext["recentVoiceLog"],
   business?: ProcioneBusinessSnapshot,
-  demoMode = false
+  demoMode = false,
+  userMemory?: UserMemory
 ): string {
   const lines: string[] = [];
   lines.push(formatAppointmentsList(todayAppointments, "Oggi"));
@@ -247,6 +254,10 @@ function buildContextBlock(
       .map((m) => `${m.role === "user" ? "Fernando" : "Procione"}: ${m.content}`)
       .join(" | ");
     lines.push(`Ultimi scambi: ${last}`);
+  }
+  if (userMemory) {
+    const memoryBlock = buildMemoryContextBlock(userMemory);
+    if (memoryBlock) lines.push(memoryBlock);
   }
   return lines.join("\n");
 }
@@ -366,7 +377,7 @@ export async function loadProcioneContext(
         ? loadBusinessSnapshot(supabase)
         : Promise.resolve(undefined);
 
-  const [{ data: todayAppts }, { data: tomorrowAppts }, { data: contacts }, { data: voiceLog }, ops, business] =
+  const [{ data: todayAppts }, { data: tomorrowAppts }, { data: contacts }, { data: voiceLog }, ops, business, userMemory] =
     await Promise.all([
       supabase
         .from("assistant_appointments")
@@ -398,6 +409,7 @@ export async function loadProcioneContext(
         .limit(8),
       loadOpsSnapshot(supabase),
       businessPromise,
+      loadUserMemory(supabase, userId),
     ]);
 
   const todayAppointments = todayAppts ?? [];
@@ -417,7 +429,8 @@ export async function loadProcioneContext(
     ops,
     recentVoiceLog,
     business,
-    dataMode === "meeting_demo"
+    dataMode === "meeting_demo",
+    userMemory
   );
 
   return {
@@ -429,5 +442,6 @@ export async function loadProcioneContext(
     business,
     summaryText,
     contextBlock,
+    userMemory,
   };
 }

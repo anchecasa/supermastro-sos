@@ -182,6 +182,7 @@ export async function POST(request: Request) {
     concierge: result.concierge,
     placeFavorite: result.placeFavorite,
     task: result.task,
+    tasks: result.tasks,
     audioBase64,
     audioMime: audioBase64 ? "audio/mpeg" : undefined,
   });

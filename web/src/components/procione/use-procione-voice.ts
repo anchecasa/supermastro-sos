@@ -35,6 +35,8 @@ type VoiceResult = {
   navigate?: { url: string; label: string };
 
   draft?: ProcioneDraft;
+  task?: unknown;
+  tasks?: unknown[];
 
   awaitingConfirm?: boolean;
 

@@ -167,6 +167,41 @@ export async function deleteContact(id: string) {
   revalidatePath(AGENDA_PATH);
 }
 
+export async function createTask(input: {
+  title: string;
+  description?: string;
+  due_at?: string;
+}) {
+  const { supabase, user } = await requireProcioneAdmin();
+  const { createAssistantTask } = await import("@/lib/procione/tasks");
+  const data = await createAssistantTask(supabase, user.id, input);
+  revalidatePath(AGENDA_PATH);
+  return data;
+}
+
+export async function updateTask(
+  id: string,
+  input: {
+    title?: string;
+    description?: string | null;
+    due_at?: string | null;
+    completed?: boolean;
+  }
+) {
+  const { supabase, user } = await requireProcioneAdmin();
+  const { updateAssistantTask } = await import("@/lib/procione/tasks");
+  const data = await updateAssistantTask(supabase, user.id, id, input);
+  revalidatePath(AGENDA_PATH);
+  return data;
+}
+
+export async function deleteTask(id: string) {
+  const { supabase, user } = await requireProcioneAdmin();
+  const { deleteAssistantTask } = await import("@/lib/procione/tasks");
+  await deleteAssistantTask(supabase, user.id, id);
+  revalidatePath(AGENDA_PATH);
+}
+
 export async function appendVoiceLog(input: {
   role: "user" | "assistant";
   content: string;

@@ -1,8 +1,8 @@
 import type { CreateAppointmentInput } from "@/lib/procione/types";
 import type { AgendaQueryPeriod } from "@/lib/procione/context";
 
-const TIME_RE = /(?:alle|ore|h)\s*(\d{1,2})(?:[:.](\d{2}))?/i;
-const DATE_RE =
+export const TIME_RE = /(?:alle|ore|h)\s*(\d{1,2})(?:[:.](\d{2}))?/i;
+export const DATE_RE =
   /(?:per\s+)?(domani|dopodomani|oggi|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)/i;
 const CONTACT_RE = /(?:con|cliente)\s+([A-Za-zÀ-ÿ\s']+)/i;
 export const PHONE_RE = /(\+?\d[\d\s.-]{7,}\d)/;
@@ -76,7 +76,8 @@ export function splitVoiceCommands(transcript: string): string[] {
 
 export function parseAppointmentCommand(
   transcript: string,
-  now = new Date()
+  now = new Date(),
+  defaultTime?: { hour: number; minute: number }
 ): CreateAppointmentInput | null {
   const text = transcript.trim();
   if (!text) return null;
@@ -99,8 +100,8 @@ export function parseAppointmentCommand(
   const contactMatch = text.match(CONTACT_RE);
 
   const dateBase = dateMatch ? parseItalianDate(dateMatch[1], now) : new Date(now);
-  const hour = timeMatch ? Number(timeMatch[1]) : 9;
-  const minute = timeMatch?.[2] ? Number(timeMatch[2]) : 0;
+  const hour = timeMatch ? Number(timeMatch[1]) : (defaultTime?.hour ?? 9);
+  const minute = timeMatch?.[2] ? Number(timeMatch[2]) : (defaultTime?.minute ?? 0);
 
   dateBase.setHours(hour, minute, 0, 0);
   const endsAt = new Date(dateBase);
@@ -189,17 +190,21 @@ export function parseContactCommand(transcript: string): {
   };
 }
 
-export function parseCombinedVoiceCommand(transcript: string, now = new Date()) {
+export function parseCombinedVoiceCommand(
+  transcript: string,
+  now = new Date(),
+  defaultTime?: { hour: number; minute: number }
+) {
   const combo = transcript.trim().match(COMBO_SPLIT_RE);
   if (combo) {
     return {
-      appointment: parseAppointmentCommand(combo[1], now),
+      appointment: parseAppointmentCommand(combo[1], now, defaultTime),
       contact: parseContactCommand(`memorizza contatto ${combo[2]}`),
     };
   }
 
   return {
-    appointment: parseAppointmentCommand(transcript, now),
+    appointment: parseAppointmentCommand(transcript, now, defaultTime),
     contact: parseContactCommand(transcript),
   };
 }
@@ -303,10 +308,24 @@ export function parseSuperMastroCommand(transcript: string): SuperMastroVoiceCom
 
 export function parseCallCommand(
   transcript: string,
-  contacts: { full_name: string; phone: string | null }[]
+  contacts: { full_name: string; phone: string | null }[],
+  aliasMap?: Map<string, string>
 ): { phone: string; name: string } | null {
   const t = transcript.toLowerCase();
   if (!/(chiama|telefona|fai\s+chiamata|chiamata\s+a|chiamalo|chiamala)/.test(t)) return null;
+
+  if (aliasMap?.size) {
+    for (const [alias, resolved] of aliasMap) {
+      if (alias.length > 2 && t.includes(alias)) {
+        const resolvedContact = contacts.find((c) =>
+          c.full_name.toLowerCase().includes(resolved.toLowerCase())
+        );
+        if (resolvedContact?.phone) {
+          return { phone: resolvedContact.phone.replace(/\s+/g, ""), name: resolvedContact.full_name };
+        }
+      }
+    }
+  }
 
   for (const c of contacts) {
     if (!c.phone) continue;

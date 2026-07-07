@@ -35,9 +35,7 @@ env:
 jobs:
   deploy-worker:
     name: Build & Cloudflare Workers
-    if: |
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_worker == 'true') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_worker == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:

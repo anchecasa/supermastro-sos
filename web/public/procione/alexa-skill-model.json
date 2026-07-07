@@ -1,0 +1,55 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "super mastro",
+      "intents": [
+        {
+          "name": "ProcioneCommandIntent",
+          "slots": [
+            {
+              "name": "command",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "chiedi a super mastro {command}",
+            "{command}",
+            "cosa ho {command}",
+            "fissa {command}"
+          ]
+        },
+        {
+          "name": "LinkAccountIntent",
+          "slots": [
+            {
+              "name": "code",
+              "type": "AMAZON.AlphaNumeric"
+            }
+          ],
+          "samples": [
+            "collega codice {code}",
+            "collega account {code}",
+            "link codice {code}"
+          ]
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        }
+      ]
+    }
+  },
+  "endpoint": {
+    "uri": "https://anchecasa.it/api/alexa/skill",
+    "sslCertificateType": "Wildcard",
+    "note": "Aggiungi header x-alexa-webhook-secret con ALEXA_WEBHOOK_SECRET"
+  }
+}

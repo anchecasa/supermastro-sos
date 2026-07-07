@@ -14,6 +14,7 @@ import {
   confirmProcioneDraft,
   type ProcioneDraft,
 } from "@/lib/procione/draft";
+import { buildTaskDraftSummary } from "@/lib/procione/tasks";
 import { parseConciergeIntent } from "@/lib/procione/concierge-parser";
 import {
   formatConciergeReply,
@@ -34,6 +35,8 @@ import {
 } from "@/lib/procione/place-favorites";
 import { buildPlaceSaveSummary, parsePlaceSaveIntent } from "@/lib/procione/place-save-parser";
 import { parseAgendaQuery, parseSuperMastroCommand } from "@/lib/procione/voice-parser";
+import { parseOpenAgendaCommand, parseTaskQuery } from "@/lib/procione/task-voice";
+import { formatTaskListReply, loadOpenTasks, taskMatchesHint } from "@/lib/procione/tasks";
 import {
   isConversationalIntent,
   isVoiceConfirmCancel,
@@ -52,6 +55,7 @@ import type {
   ProcioneDemoSnapshot,
   ProcioneMeetingContext,
 } from "@/lib/procione/session";
+import { applyMemoryIntent, parseMemoryIntent } from "@/lib/procione/user-memory";
 
 export type { IntentResult };
 
@@ -127,6 +131,12 @@ export async function executeParsedCommand(
   const ctx = await loadProcioneContext(supabase, userId, { dataMode, demoSnapshot });
   const { pendingDraft, history = [] } = options;
   const sessionPatch = { dataMode, meetingContext, demoSnapshot };
+
+  const memoryIntent = parseMemoryIntent(transcript);
+  if (memoryIntent) {
+    const saved = await applyMemoryIntent(supabase, userId, memoryIntent);
+    return withSession({ reply: saved.reply, type: "chat", sessionActive: true }, sessionPatch);
+  }
 
   if (pendingDraft) {
     if (isVoiceConfirmYes(transcript)) {
@@ -267,6 +277,32 @@ export async function executeParsedCommand(
     );
   }
 
+  const openAgenda = parseOpenAgendaCommand(transcript);
+  if (openAgenda) {
+    return withSession(
+      { reply: openAgenda.reply, type: "query", agendaAction: "open", sessionActive: true },
+      sessionPatch
+    );
+  }
+
+  const taskQueryEarly = parseTaskQuery(transcript);
+  if (taskQueryEarly && !parseAgendaQuery(transcript)) {
+    let tasks = await loadOpenTasks(supabase, userId, 50);
+    if (taskQueryEarly.search) {
+      tasks = tasks.filter((t) => taskMatchesHint(t, taskQueryEarly.search!));
+    }
+    return withSession(
+      {
+        reply: formatTaskListReply(tasks),
+        type: "query",
+        agendaAction: "open",
+        tasks,
+        sessionActive: true,
+      },
+      sessionPatch
+    );
+  }
+
   const agendaPeriod = parseAgendaQuery(transcript);
   if (agendaPeriod) {
     const { buildAgendaQueryReply } = await import("@/lib/procione/context");
@@ -394,6 +430,20 @@ async function executeGptStructured(
       kind: "contact",
       contact,
       summary: buildContactDraftSummary(contact),
+    });
+  }
+
+  if (parsed.intent === "create_task" && parsed.task?.title) {
+    const task = {
+      title: parsed.task.title,
+      description: parsed.task.description,
+      due_at: parsed.task.due_at,
+      task_type: "reminder" as const,
+    };
+    return buildDraftResult({
+      kind: "task",
+      task,
+      summary: buildTaskDraftSummary(task),
     });
   }
 

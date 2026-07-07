@@ -51,6 +51,35 @@ export function ProcioneDraftCard({ draft, pending, onConfirm, onCancel }: Props
         </dl>
       )}
 
+      {draft.task && (
+        <dl className="mt-3 space-y-1 text-xs text-gray-600">
+          <div>
+            <dt className="inline font-medium">Soggetto: </dt>
+            <dd className="inline">{draft.task.title}</dd>
+          </div>
+          {draft.task.description && (
+            <div>
+              <dt className="inline font-medium">Contenuto: </dt>
+              <dd className="inline">{draft.task.description}</dd>
+            </div>
+          )}
+          {draft.task.due_at && (
+            <div>
+              <dt className="inline font-medium">Scadenza: </dt>
+              <dd className="inline">
+                {new Intl.DateTimeFormat("it-IT", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(draft.task.due_at))}
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
+
       {draft.placeFavorite && (
         <dl className="mt-3 space-y-1 text-xs text-gray-600">
           <div>

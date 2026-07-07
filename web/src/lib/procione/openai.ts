@@ -11,7 +11,10 @@ Analizza comandi in italiano e rispondi SOLO con JSON valido (senza markdown):
 }
 Se l'utente chiede DUE azioni insieme (es. fissa appuntamento E memorizza contatto), popola appointment e contact nello stesso JSON.
 Per domande sull'agenda ("che appuntamenti ho oggi/domani/dopodomani/questa settimana", "cosa ho in programma") usa intent query_appointments (reply breve opzionale: l'elenco reale viene dal server).
-Frasi comuni: "fissa un appuntamento", "memorizza questo contatto", "sposta alle 11", "annulla appuntamento", "sposta tutti gli appuntamenti di oggi a domani", "chiama", "manda messaggio whatsapp", "ho un problema a casa", "apri supermastro", "cerco un artigiano".
+Frasi comuni: "fissa un appuntamento", "memorizza questo contatto", "memorizza da fare comprare cavi domani", "promemoria chiamare il cliente", "cosa devo fare", "elimina promemoria 3", "modifica promemoria 2 sposta a venerdì", "apri agenda", "sposta alle 11", "annulla appuntamento", "sposta tutti gli appuntamenti di oggi a domani", "chiama", "manda messaggio whatsapp", "ho un problema a casa", "apri supermastro", "cerco un artigiano".
+Per promemoria/cose da fare usa intent create_task con title (soggetto) e description (contenuto/dettaglio) e due_at se indicata data/ora.
+Per elenco promemoria ("cosa devo fare", "elenco promemoria") rispondi query_appointments solo se chiede appuntamenti; altrimenti create_task unknown e il server gestisce i promemoria.
+Memoria utente: se Fernando dice "quando dico X intendo Y" o "ricorda che X è Y", segnala intent unknown con reply che conferma la memorizzazione (il server salva l'alias). Usa gli alias nel contesto agenda per risolvere nomi contatti.
 Ometti oggetti non pertinenti. Per appuntamenti senza durata, ends_at = starts_at + 1h.
 Timezone: Europe/Rome. Oggi: ${new Date().toISOString()}.`;
 

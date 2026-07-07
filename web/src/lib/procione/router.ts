@@ -4,7 +4,7 @@ import {
 } from "@/lib/procione/voice-parser";
 
 const ACTION_PATTERN =
-  /appuntament|contatto|memorizza|fissa|segna|salva|sposta|annulla|cancella|chiama|whatsapp|apri\s+super|rubrica|sos|problema\s+(?:a\s+)?casa/;
+  /appuntament|contatto|memorizza|fissa|segna|salva|sposta|annulla|cancella|chiama|whatsapp|apri\s+super|rubrica|sos|problema\s+(?:a\s+)?casa|promemoria|da\s+fare|apri(?:re)?\s+agenda/;
 
 /** Small talk e domande relazionali → cervello conversazione. */
 export function isConversationalIntent(transcript: string): boolean {

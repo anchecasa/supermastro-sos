@@ -17,6 +17,11 @@ import {
   type ProcioneDraft,
 } from "@/lib/procione/draft";
 import {
+  buildAliasMap,
+  enrichContactsWithAliases,
+  parseDefaultAppointmentTime,
+} from "@/lib/procione/user-memory";
+import {
   parseAppointmentCommand,
   parseAgendaQuery,
   parseCallCommand,
@@ -28,6 +33,23 @@ import {
   PHONE_RE,
   splitVoiceCommands,
 } from "@/lib/procione/voice-parser";
+import {
+  parseOpenAgendaCommand,
+  parseTaskCommand,
+  parseTaskCompleteCommand,
+  parseTaskDeleteCommand,
+  parseTaskModifyCommand,
+  parseTaskQuery,
+} from "@/lib/procione/task-voice";
+import {
+  buildTaskDraftSummary,
+  deleteAssistantTask,
+  findTaskByHint,
+  formatTaskListReply,
+  loadOpenTasks,
+  taskMatchesHint,
+  updateAssistantTask,
+} from "@/lib/procione/tasks";
 
 export type IntentResult = {
   reply: string;
@@ -48,6 +70,7 @@ export type IntentResult = {
   appointments?: unknown[];
   contacts?: unknown[];
   task?: unknown;
+  tasks?: unknown[];
   call?: { phone: string; name: string };
   whatsapp?: { phone: string; name: string; message: string; url: string };
   rubricaAction?: "open" | "add" | "search";
@@ -193,7 +216,9 @@ export async function executeVoiceCommand(
     .select("full_name, phone")
     .eq("owner_id", userId);
 
-  const contacts = contactsRows ?? [];
+  const contacts = enrichContactsWithAliases(contactsRows ?? [], ctx.userMemory);
+  const aliasMap = buildAliasMap(ctx.userMemory);
+  const defaultTime = parseDefaultAppointmentTime(ctx.userMemory);
 
   const superMastro = parseSuperMastroCommand(transcript);
   if (superMastro) {
@@ -202,6 +227,40 @@ export async function executeVoiceCommand(
       type: "navigate",
       navigate: { url: superMastro.url, label: superMastro.label },
     };
+  }
+
+  const openAgenda = parseOpenAgendaCommand(transcript);
+  if (openAgenda) {
+    return { reply: openAgenda.reply, type: "query", agendaAction: "open" };
+  }
+
+  const taskDelete = parseTaskDeleteCommand(transcript);
+  if (taskDelete) {
+    return deleteTaskByVoice(supabase, userId, taskDelete.hint);
+  }
+
+  const taskComplete = parseTaskCompleteCommand(transcript);
+  if (taskComplete) {
+    return completeTaskByVoice(supabase, userId, taskComplete.hint);
+  }
+
+  const taskModify = parseTaskModifyCommand(transcript);
+  if (taskModify) {
+    return modifyTaskByVoice(supabase, userId, taskModify);
+  }
+
+  const taskQuery = parseTaskQuery(transcript);
+  if (taskQuery) {
+    return queryTasksByVoice(supabase, userId, taskQuery);
+  }
+
+  const taskDraft = parseTaskCommand(transcript);
+  if (taskDraft) {
+    return buildDraftResult({
+      kind: "task",
+      task: taskDraft,
+      summary: buildTaskDraftSummary(taskDraft),
+    });
   }
 
   const rubricaCmd = parseRubricaVoiceCommand(transcript);
@@ -230,7 +289,7 @@ export async function executeVoiceCommand(
     };
   }
 
-  const call = parseCallCommand(transcript, contacts);
+  const call = parseCallCommand(transcript, contacts, aliasMap);
   if (call) {
     return {
       reply: `Chiamo ${call.name}.`,
@@ -269,7 +328,106 @@ export async function executeVoiceCommand(
     return rescheduleAppointment(supabase, userId, reschedule);
   }
 
-  return executeCreateCommands(supabase, userId, transcript);
+  return executeCreateCommands(supabase, userId, transcript, defaultTime);
+}
+
+async function queryTasksByVoice(
+  supabase: SupabaseClient,
+  userId: string,
+  query: import("@/lib/procione/task-voice").TaskQueryIntent
+): Promise<IntentResult> {
+  let tasks = await loadOpenTasks(supabase, userId, 50);
+
+  if (query.filter === "today") {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    tasks = tasks.filter((t) => t.due_at && new Date(t.due_at) >= start && new Date(t.due_at) <= end);
+  } else if (query.filter === "week") {
+    const end = new Date();
+    end.setDate(end.getDate() + 7);
+    tasks = tasks.filter((t) => !t.due_at || new Date(t.due_at) <= end);
+  }
+
+  if (query.search) {
+    tasks = tasks.filter((t) => taskMatchesHint(t, query.search!));
+  }
+
+  return {
+    reply: formatTaskListReply(tasks),
+    type: "query",
+    agendaAction: "open",
+    tasks,
+  };
+}
+
+async function deleteTaskByVoice(
+  supabase: SupabaseClient,
+  userId: string,
+  hint: string
+): Promise<IntentResult> {
+  const task = await findTaskByHint(supabase, userId, hint);
+  if (!task) {
+    return { reply: "Non trovo quel promemoria.", type: "unknown" };
+  }
+  await deleteAssistantTask(supabase, userId, task.id);
+  return {
+    reply: `Eliminato promemoria n.${task.voice_ref ?? "?"} «${task.title}».`,
+    type: "task",
+    task: { ...task, deleted: true },
+    agendaAction: "open",
+  };
+}
+
+async function completeTaskByVoice(
+  supabase: SupabaseClient,
+  userId: string,
+  hint: string
+): Promise<IntentResult> {
+  const task = await findTaskByHint(supabase, userId, hint);
+  if (!task) {
+    return { reply: "Non trovo quel promemoria.", type: "unknown" };
+  }
+  const updated = await updateAssistantTask(supabase, userId, task.id, { completed: true });
+  return {
+    reply: `Segnato come fatto: «${updated.title}».`,
+    type: "task",
+    task: updated,
+    agendaAction: "open",
+  };
+}
+
+async function modifyTaskByVoice(
+  supabase: SupabaseClient,
+  userId: string,
+  patch: { hint: string; title?: string; description?: string; due_at?: string }
+): Promise<IntentResult> {
+  const task = await findTaskByHint(supabase, userId, patch.hint);
+  if (!task) {
+    return { reply: "Non trovo quel promemoria da modificare.", type: "unknown" };
+  }
+
+  const updates: Partial<{ title: string; description: string; due_at: string }> = {};
+  if (patch.title) updates.title = patch.title;
+  if (patch.description) updates.description = patch.description;
+  if (patch.due_at) updates.due_at = patch.due_at;
+
+  if (!Object.keys(updates).length) {
+    return {
+      reply: `Promemoria n.${task.voice_ref ?? "?"} «${task.title}». Cosa vuoi cambiare? Data, titolo o contenuto.`,
+      type: "query",
+      agendaAction: "open",
+    };
+  }
+
+  const updated = await updateAssistantTask(supabase, userId, task.id, updates);
+  return {
+    reply: `Aggiornato promemoria n.${updated.voice_ref ?? "?"} «${updated.title}».`,
+    type: "task",
+    task: updated,
+    agendaAction: "open",
+  };
 }
 
 async function cancelAppointment(
@@ -398,8 +556,13 @@ async function bulkMoveTodayToTomorrow(supabase: SupabaseClient, userId: string)
   };
 }
 
-async function executeCreateCommands(supabase: SupabaseClient, userId: string, transcript: string) {
-  const combined = parseCombinedVoiceCommand(transcript);
+async function executeCreateCommands(
+  supabase: SupabaseClient,
+  userId: string,
+  transcript: string,
+  defaultTime?: { hour: number; minute: number }
+) {
+  const combined = parseCombinedVoiceCommand(transcript, new Date(), defaultTime);
   let draftContact: ProcioneDraft["contact"];
   let draftAppointment: ProcioneDraft["appointment"];
 
@@ -428,7 +591,7 @@ async function executeCreateCommands(supabase: SupabaseClient, userId: string, t
         };
         continue;
       }
-      const a = parseAppointmentCommand(segment);
+      const a = parseAppointmentCommand(segment, new Date(), defaultTime);
       if (a) draftAppointment = a;
     }
   }

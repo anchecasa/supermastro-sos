@@ -26,10 +26,11 @@ import { PROCIONE_TAB_KEY } from "@/lib/procione/focus-agenda";
 import type {
   AssistantAppointment,
   AssistantContact,
+  AssistantTask,
   AssistantVoiceLog,
   CreateAppointmentInput,
 } from "@/lib/procione/types";
-import { createAppointment, createContact, deleteAppointment, deleteContact, updateContact } from "@/app/procione/actions";
+import { createAppointment, createContact, deleteAppointment, deleteContact, deleteTask, updateContact, updateTask } from "@/app/procione/actions";
 import {
   ProcioneIntegrations,
   ProcioneServiceWorkerRegister,
@@ -46,6 +47,8 @@ import type { ConciergePlaceResult } from "@/lib/procione/concierge";
 import { loadProcioneSession, type ProcioneDataMode } from "@/lib/procione/session";
 import { useProcioneScreenWakeLock } from "@/components/procione/use-procione-wake-lock";
 import { cn } from "@/lib/utils";
+import { TaskListSection } from "@/components/procione/task-list-section";
+import { TaskDetailSheet } from "@/components/procione/task-detail-sheet";
 
 const PROCIONE_AVATAR = "/images/supermastro-mezzobusto.png";
 const ORANGE = "#F27131";
@@ -58,6 +61,7 @@ type AgendaAppProps = {
   googleConnected: boolean;
   initialAppointments: AssistantAppointment[];
   initialContacts: AssistantContact[];
+  initialTasks: AssistantTask[];
   initialVoiceLog: AssistantVoiceLog[];
 };
 
@@ -67,16 +71,19 @@ export function AgendaApp({
   googleConnected: initialGoogleConnected,
   initialAppointments,
   initialContacts,
+  initialTasks,
   initialVoiceLog,
 }: AgendaAppProps) {
   const [tab, setTab] = useState<TabId>("agenda");
   const [appointments, setAppointments] = useState(initialAppointments);
   const [contacts, setContacts] = useState(initialContacts);
+  const [tasks, setTasks] = useState(initialTasks);
   const [voiceLog, setVoiceLog] = useState(initialVoiceLog);
   const [googleConnected, setGoogleConnected] = useState(initialGoogleConnected);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushAttempted, setPushAttempted] = useState(false);
   const [selected, setSelected] = useState<AssistantAppointment | null>(null);
+  const [selectedTask, setSelectedTask] = useState<AssistantTask | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
   const [procioneMood, setProcioneMood] = useState<"idle" | "active" | "success">("idle");
@@ -133,6 +140,29 @@ export function AgendaApp({
       }
       return next.sort((a, b) => a.full_name.localeCompare(b.full_name, "it"));
     });
+  }
+
+  function mergeTasks(incoming: AssistantTask[]) {
+    if (!incoming.length) return;
+    setTasks((prev) => {
+      const next = [...prev];
+      for (const t of incoming) {
+        const idx = next.findIndex((p) => p.id === t.id);
+        if (idx >= 0) next[idx] = t;
+        else next.push(t);
+      }
+      return next
+        .filter((t) => !(t as AssistantTask & { deleted?: boolean }).deleted && !t.completed)
+        .sort((a, b) => {
+          const ad = a.due_at ? new Date(a.due_at).getTime() : Number.MAX_SAFE_INTEGER;
+          const bd = b.due_at ? new Date(b.due_at).getTime() : Number.MAX_SAFE_INTEGER;
+          return ad - bd;
+        });
+    });
+  }
+
+  function removeTaskFromList(taskId: string) {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
   }
 
   function applyRubricaVoice(result: {
@@ -199,6 +229,7 @@ export function AgendaApp({
     dataMode?: ProcioneDataMode;
     concierge?: ConciergeSearchResult;
     task?: unknown;
+    tasks?: unknown[];
   }) {
     if (result.dataMode) {
       setDataMode(result.dataMode);
@@ -238,6 +269,19 @@ export function AgendaApp({
       mergeContacts(newContacts);
     }
 
+    const newTasks = (result.tasks ?? (result.task ? [result.task] : [])) as (AssistantTask & {
+      deleted?: boolean;
+    })[];
+    for (const t of newTasks) {
+      if (t.deleted) {
+        removeTaskFromList(t.id);
+      } else if (t.completed) {
+        removeTaskFromList(t.id);
+      } else {
+        mergeTasks([t]);
+      }
+    }
+
     applyRubricaVoice(result);
 
     if (result.agendaAction === "open") {
@@ -266,6 +310,7 @@ export function AgendaApp({
     if (result.type === "task") {
       setPendingDraft(null);
       showToast(result.reply || "Promemoria salvato!");
+      setTab("agenda");
       setProcioneMood("success");
       window.setTimeout(() => setProcioneMood("idle"), 2000);
       return;
@@ -387,6 +432,8 @@ export function AgendaApp({
         appointments: data.appointments,
         contact: data.contact,
         contacts: data.contacts,
+        task: data.task,
+        tasks: data.tasks,
       });
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Errore salvataggio");
@@ -528,6 +575,46 @@ export function AgendaApp({
     }
   }
 
+  async function handleSaveTask(
+    id: string,
+    patch: { title: string; description: string; due_at: string; completed: boolean }
+  ) {
+    setPending(true);
+    try {
+      const updated = (await updateTask(id, {
+        title: patch.title,
+        description: patch.description || null,
+        due_at: patch.due_at ? new Date(patch.due_at).toISOString() : null,
+        completed: patch.completed,
+      })) as AssistantTask;
+      if (updated.completed) {
+        removeTaskFromList(updated.id);
+      } else {
+        mergeTasks([updated]);
+      }
+      setSelectedTask(null);
+      showToast(patch.completed ? "Promemoria completato" : "Promemoria aggiornato");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Errore");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleDeleteTask(id: string) {
+    setPending(true);
+    try {
+      await deleteTask(id);
+      removeTaskFromList(id);
+      setSelectedTask(null);
+      showToast("Promemoria eliminato");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Errore");
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <div className="relative mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#f3f4f6] shadow-xl">
       <ProcioneServiceWorkerRegister />
@@ -622,6 +709,7 @@ export function AgendaApp({
               appointments={sortedAppointments}
               onSelectAppointment={setSelected}
             />
+            <TaskListSection tasks={tasks} onSelect={setSelectedTask} />
           </section>
         )}
 
@@ -852,10 +940,20 @@ export function AgendaApp({
         />
       )}
 
+      {selectedTask && (
+        <TaskDetailSheet
+          task={selectedTask}
+          pending={pending}
+          onClose={() => setSelectedTask(null)}
+          onSave={(patch) => handleSaveTask(selectedTask.id, patch)}
+          onDelete={() => handleDeleteTask(selectedTask.id)}
+        />
+      )}
+
       <div
         className={cn(
           "fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 border-t border-gray-200 bg-white/95 px-4 pb-6 pt-3 backdrop-blur",
-          selected && "pointer-events-none opacity-40"
+          (selected || selectedTask) && "pointer-events-none opacity-40"
         )}
       >
         <div className="relative flex items-end justify-between">

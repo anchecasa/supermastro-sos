@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CreateAppointmentInput } from "@/lib/procione/types";
 import { upsertAppointment, upsertContact, findContactByName } from "@/lib/procione/upsert";
+import { buildTaskDraftSummary, createAssistantTask } from "@/lib/procione/tasks";
 import type { IntentResult } from "@/lib/procione/tools";
 
 export type ProcioneDraftContact = {
@@ -14,6 +15,13 @@ export type ProcioneMarketingDraft = {
   title: string;
   description?: string;
   due_at?: string;
+};
+
+export type ProcioneTaskDraft = {
+  title: string;
+  description?: string;
+  due_at?: string;
+  task_type?: "reminder" | "marketing";
 };
 
 import { savePlaceFavorite, type PlaceFavorite } from "@/lib/procione/place-favorites";
@@ -30,10 +38,11 @@ export type ProcionePlaceFavoriteDraft = {
 };
 
 export type ProcioneDraft = {
-  kind: "contact" | "appointment" | "multi" | "marketing" | "place_favorite";
+  kind: "contact" | "appointment" | "multi" | "marketing" | "task" | "place_favorite";
   contact?: ProcioneDraftContact;
   appointment?: CreateAppointmentInput;
   marketing?: ProcioneMarketingDraft;
+  task?: ProcioneTaskDraft;
   placeFavorite?: ProcionePlaceFavoriteDraft;
   summary: string;
 };
@@ -67,7 +76,7 @@ export function buildDraftResult(draft: ProcioneDraft): IntentResult {
     draft,
     awaitingConfirm: true,
     rubricaAction: draft.contact ? "open" : undefined,
-    agendaAction: draft.appointment ? "open" : undefined,
+    agendaAction: draft.appointment || draft.task ? "open" : undefined,
   };
 }
 
@@ -120,6 +129,21 @@ export async function confirmProcioneDraft(
       reply: `Fatto Fernando! Promemoria campagna «${draft.marketing.title}» salvato.`,
       type: "task",
       task: data,
+    };
+  }
+
+  if (draft.kind === "task" && draft.task?.title) {
+    const saved = await createAssistantTask(supabase, userId, {
+      title: draft.task.title,
+      description: draft.task.description,
+      due_at: draft.task.due_at,
+      task_type: draft.task.task_type ?? "reminder",
+    });
+    return {
+      reply: `Fatto Fernando! Promemoria n.${saved.voice_ref} «${saved.title}» memorizzato.`,
+      type: "task",
+      task: saved,
+      agendaAction: "open",
     };
   }
 
