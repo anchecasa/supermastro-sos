@@ -14,45 +14,49 @@ function isAdminEmail(email: string | undefined | null): boolean {
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const { url, key } = getSupabasePublicConfig();
+  try {
+    const { url, key } = getSupabasePublicConfig();
 
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+    const supabase = createServerClient(url, key, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value)
-        );
-        supabaseResponse = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
-        );
-      },
-    },
-  });
+    });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
+    const pathname = request.nextUrl.pathname;
 
-  // F4 — MFA obbligatorio per admin (prod: ADMIN_REQUIRE_MFA=true)
-  if (
-    process.env.ADMIN_REQUIRE_MFA === "true" &&
-    pathname.startsWith("/admin") &&
-    !pathname.startsWith("/admin/mfa") &&
-    user &&
-    isAdminEmail(user.email)
-  ) {
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aal?.currentLevel !== "aal2") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/admin/mfa";
-      return NextResponse.redirect(url);
+    // F4 — MFA obbligatorio per admin (prod: ADMIN_REQUIRE_MFA=true)
+    if (
+      process.env.ADMIN_REQUIRE_MFA === "true" &&
+      pathname.startsWith("/admin") &&
+      !pathname.startsWith("/admin/mfa") &&
+      user &&
+      isAdminEmail(user.email)
+    ) {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.currentLevel !== "aal2") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin/mfa";
+        return NextResponse.redirect(url);
+      }
     }
+  } catch (err) {
+    console.error("[middleware] Supabase session error:", err);
   }
 
   return supabaseResponse;

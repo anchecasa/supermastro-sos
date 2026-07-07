@@ -52,6 +52,7 @@ export default async function ProcioneAgendaPage() {
     supabase
       .from("assistant_voice_log")
       .select("*")
+      .eq("owner_id", user!.id)
       .order("created_at", { ascending: false })
       .limit(30),
     supabase
