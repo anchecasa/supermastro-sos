@@ -17,6 +17,7 @@ import {
 import { parseConciergeIntent } from "@/lib/procione/concierge-parser";
 import {
   formatConciergeReply,
+  isConciergeConfigured,
   isGoogleMapsConfigured,
   runConciergeSearch,
   VERSACE_CINESE_ACK,
@@ -172,10 +173,10 @@ export async function executeParsedCommand(
 
   const conciergeIntent = parseConciergeIntent(transcript, meetingContext?.destination);
   if (conciergeIntent) {
-    if (!isGoogleMapsConfigured()) {
+    if (!isConciergeConfigured()) {
       return withSession(
         {
-          reply: `Per cercare ${conciergeIntent.kind === "train" ? "treni" : conciergeIntent.kind === "hotel" ? "hotel" : "ristoranti"} a ${conciergeIntent.destination} serve GOOGLE_MAPS_API_KEY sul server.`,
+          reply: "Concierge non disponibile al momento.",
           type: "chat",
           sessionActive: true,
         },

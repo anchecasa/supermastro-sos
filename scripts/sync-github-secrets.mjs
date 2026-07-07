@@ -23,6 +23,9 @@ const SECRET_KEYS = [
   "SUPABASE_DB_URL",
   "ADMIN_EMAILS",
   "NEXT_PUBLIC_SENTRY_DSN",
+  "OPENAI_API_KEY",
+  "GOOGLE_MAPS_API_KEY",
+  "ELEVENLABS_API_KEY",
 ];
 
 function loadDotEnv(path) {

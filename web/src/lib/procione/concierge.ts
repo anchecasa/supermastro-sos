@@ -1,5 +1,10 @@
-import { getProcioneEnv } from "@/lib/procione/env";
 import type { ConciergeKind } from "@/lib/procione/concierge-parser";
+import {
+  buildTransitMapsFallback,
+  geocodeCityOsm,
+  searchPlacesNearbyOsm,
+  searchPlacesOsm,
+} from "@/lib/procione/concierge-osm";
 
 export type ConciergePlaceResult = {
   name: string;
@@ -48,6 +53,11 @@ export function isGoogleMapsConfigured() {
   return Boolean(mapsKey());
 }
 
+/** Concierge attivo con Google Maps o fallback OpenStreetMap. */
+export function isConciergeConfigured() {
+  return true;
+}
+
 function buildBookingUrl(city: string, people = 2, budgetMax?: number): string {
   const params = new URLSearchParams({
     ss: city,
@@ -91,18 +101,21 @@ function mapPlaceResult(
 
 async function geocodeCity(city: string): Promise<{ lat: number; lng: number } | null> {
   const key = mapsKey();
-  if (!key) return null;
-  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
-  url.searchParams.set("address", `${city}, Italia`);
-  url.searchParams.set("key", key);
-  url.searchParams.set("language", "it");
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const data = (await res.json()) as {
-    results?: { geometry?: { location?: { lat: number; lng: number } } }[];
-  };
-  const loc = data.results?.[0]?.geometry?.location;
-  return loc ? { lat: loc.lat, lng: loc.lng } : null;
+  if (key) {
+    const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+    url.searchParams.set("address", `${city}, Italia`);
+    url.searchParams.set("key", key);
+    url.searchParams.set("language", "it");
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = (await res.json()) as {
+        results?: { geometry?: { location?: { lat: number; lng: number } } }[];
+      };
+      const loc = data.results?.[0]?.geometry?.location;
+      if (loc) return { lat: loc.lat, lng: loc.lng };
+    }
+  }
+  return geocodeCityOsm(city);
 }
 
 export async function searchPlacesNearby(
@@ -113,7 +126,10 @@ export async function searchPlacesNearby(
   options: { versaceCinese?: boolean; budgetMax?: number; people?: number } = {}
 ): Promise<ConciergePlaceResult[]> {
   const key = mapsKey();
-  if (!key) return [];
+  const bookingUrl = kind === "hotel" ? buildBookingUrl(cityLabel, options.people, options.budgetMax) : undefined;
+  if (!key) {
+    return searchPlacesNearbyOsm(kind, lat, lng, cityLabel, { bookingUrl });
+  }
 
   const type = kind === "restaurant" ? "restaurant" : "lodging";
   const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
@@ -161,7 +177,10 @@ export async function searchPlaces(
   options: { versaceCinese?: boolean; budgetMax?: number; people?: number } = {}
 ): Promise<ConciergePlaceResult[]> {
   const key = mapsKey();
-  if (!key) return [];
+  if (!key) {
+    const bookingUrl = kind === "hotel" ? buildBookingUrl(destination, options.people, options.budgetMax) : undefined;
+    return searchPlacesOsm(kind, destination, { bookingUrl, versaceCinese: options.versaceCinese });
+  }
 
   const queryType = kind === "restaurant" ? "ristorante" : "hotel";
   let query = `${queryType} ${destination} Italia`;
@@ -214,7 +233,9 @@ export async function searchTransit(
   when?: string
 ): Promise<ConciergeTransitResult[]> {
   const key = mapsKey();
-  if (!key) return [];
+  if (!key) {
+    return buildTransitMapsFallback(origin, destination, when);
+  }
 
   const [originGeo, destGeo] = await Promise.all([geocodeCity(origin), geocodeCity(destination)]);
   if (!originGeo || !destGeo) return [];
@@ -293,7 +314,6 @@ export async function runConciergeSearch(input: {
   lng?: number;
   cityLabel?: string;
 }): Promise<ConciergeSearchResult> {
-  const env = getProcioneEnv();
   const defaultOrigin = "Milano";
 
   if (input.kind === "train") {
