@@ -1,8 +1,9 @@
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { requireProcioneApiUser } from "@/lib/procione/auth-api";
+import { AGENDA_PUBLIC_PATH } from "@/lib/agenda/gate";
 import type { CreateAppointmentInput } from "@/lib/procione/types";
 import {
   executeParsedCommand,
@@ -18,23 +19,24 @@ import { getProcioneEnv, isOpenAiConfigured } from "@/lib/procione/env";
 import { formatDisplayName, normalizeContactName } from "@/lib/procione/normalize";
 import { upsertContact } from "@/lib/procione/upsert";
 
-const AGENDA_PATH = "/procione/agenda";
+const AGENDA_PATHS = ["/procione/agenda", AGENDA_PUBLIC_PATH];
+
+function revalidateAgendaPaths() {
+  for (const path of AGENDA_PATHS) {
+    revalidatePath(path);
+  }
+}
 
 async function requireProcioneAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user || !isAdminEmail(user.email)) {
+  const auth = await requireProcioneApiUser();
+  if ("error" in auth) {
     throw new Error("Accesso riservato agli admin Procione.");
   }
-
-  return { supabase, user };
+  return auth;
 }
 
 async function syncToGoogle(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   userId: string,
   appointment: {
     id: string;
@@ -99,14 +101,14 @@ export async function createAppointment(input: CreateAppointmentInput) {
 
   await syncToGoogle(supabase, user.id, data);
 
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
   return data;
 }
 
 export async function deleteAppointment(id: string) {
   const { supabase, user } = await requireProcioneAdmin();
   await removeAppointmentWithGoogle(supabase, user.id, id);
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
 }
 
 export async function createContact(input: {
@@ -118,7 +120,7 @@ export async function createContact(input: {
 }) {
   const { supabase, user } = await requireProcioneAdmin();
   const result = await upsertContact(supabase, user.id, input);
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
   return result.data;
 }
 
@@ -151,7 +153,7 @@ export async function updateContact(
     .single();
 
   if (error) throw new Error(error.message);
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
   return data;
 }
 
@@ -164,7 +166,7 @@ export async function deleteContact(id: string) {
     .eq("owner_id", user.id);
 
   if (error) throw new Error(error.message);
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
 }
 
 export async function createTask(input: {
@@ -175,7 +177,7 @@ export async function createTask(input: {
   const { supabase, user } = await requireProcioneAdmin();
   const { createAssistantTask } = await import("@/lib/procione/tasks");
   const data = await createAssistantTask(supabase, user.id, input);
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
   return data;
 }
 
@@ -191,7 +193,7 @@ export async function updateTask(
   const { supabase, user } = await requireProcioneAdmin();
   const { updateAssistantTask } = await import("@/lib/procione/tasks");
   const data = await updateAssistantTask(supabase, user.id, id, input);
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
   return data;
 }
 
@@ -199,7 +201,7 @@ export async function deleteTask(id: string) {
   const { supabase, user } = await requireProcioneAdmin();
   const { deleteAssistantTask } = await import("@/lib/procione/tasks");
   await deleteAssistantTask(supabase, user.id, id);
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
 }
 
 export async function appendVoiceLog(input: {
@@ -222,7 +224,7 @@ export async function appendVoiceLog(input: {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
   return data;
 }
 
@@ -247,6 +249,6 @@ export async function processVoiceCommand(transcript: string) {
     action_type: result.type === "unknown" ? "query" : result.type,
   });
 
-  revalidatePath(AGENDA_PATH);
+  revalidateAgendaPaths();
   return result;
 }

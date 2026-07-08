@@ -1,0 +1,31 @@
+{
+  "id": "/agenda/",
+  "name": "Agenda Procione — AncheCasa",
+  "short_name": "Agenda",
+  "description": "Agenda vocale admin — di' «we we» per aprire, ascolto stile Siri",
+  "start_url": "/agenda",
+  "scope": "/agenda/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#F27131",
+  "orientation": "portrait",
+  "lang": "it",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/images/supermastro-mezzobusto.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Agenda vocale",
+      "short_name": "Agenda",
+      "url": "/agenda",
+      "icons": [{ "src": "/images/supermastro-mezzobusto.png", "sizes": "512x512" }]
+    }
+  ],
+  "handle_links": "preferred"
+}

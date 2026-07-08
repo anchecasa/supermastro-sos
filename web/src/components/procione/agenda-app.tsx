@@ -63,6 +63,7 @@ type AgendaAppProps = {
   initialContacts: AssistantContact[];
   initialTasks: AssistantTask[];
   initialVoiceLog: AssistantVoiceLog[];
+  installVariant?: "procione" | "agenda";
 };
 
 export function AgendaApp({
@@ -73,6 +74,7 @@ export function AgendaApp({
   initialContacts,
   initialTasks,
   initialVoiceLog,
+  installVariant = "procione",
 }: AgendaAppProps) {
   const [tab, setTab] = useState<TabId>("agenda");
   const [appointments, setAppointments] = useState(initialAppointments);
@@ -617,7 +619,7 @@ export function AgendaApp({
 
   return (
     <div className="relative mx-auto flex min-h-[100dvh] max-w-md flex-col bg-[#f3f4f6] shadow-xl">
-      <ProcioneServiceWorkerRegister />
+      {installVariant === "procione" && <ProcioneServiceWorkerRegister />}
       <header className="relative z-10 overflow-hidden px-4 pb-8 pt-4" style={{ backgroundColor: ORANGE }}>
         <div className="flex items-center justify-between text-white">
           <button type="button" className="rounded-full p-2 hover:bg-white/10" aria-label="Menu">
@@ -704,7 +706,7 @@ export function AgendaApp({
       <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
         {tab === "agenda" && (
           <section>
-            <ProcioneInstallBanner />
+            <ProcioneInstallBanner variant={installVariant} prominent={installVariant === "agenda"} />
             <ProcioneCalendar
               appointments={sortedAppointments}
               onSelectAppointment={setSelected}

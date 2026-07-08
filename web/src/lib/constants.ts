@@ -11,7 +11,7 @@ const ROLE_HOME: Record<UserRole, string> = {
 const ROLE_ALLOWED_PREFIXES: Record<UserRole, string[]> = {
   client: ["/supermastro", "/lavoro", "/procione"],
   worker: ["/artigiano", "/supermastro", "/lavoro"],
-  admin: ["/admin", "/procione"],
+  admin: ["/admin", "/procione", "/agenda"],
 };
 
 export function getDefaultHomePath(role: UserRole): string {

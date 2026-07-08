@@ -15,7 +15,8 @@
       "anchecasa.it/supermastro*",
       "anchecasa.it/sos*",
       "anchecasa.it/artigiano*",
-      "anchecasa.it/admin*"
+      "anchecasa.it/admin*",
+      "anchecasa.it/agenda*"
     ]
   },
   "supabase": {

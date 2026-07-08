@@ -156,11 +156,17 @@ export function ProcioneIntegrations({
   );
 }
 
-export function ProcioneServiceWorkerRegister() {
+export function ProcioneServiceWorkerRegister({
+  swPath = "/procione/sw.js",
+  scope = "/procione/",
+}: {
+  swPath?: string;
+  scope?: string;
+} = {}) {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    void navigator.serviceWorker.register("/procione/sw.js", { scope: "/procione/" });
-  }, []);
+    void navigator.serviceWorker.register(swPath, { scope });
+  }, [scope, swPath]);
   return null;
 }
 
