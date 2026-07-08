@@ -14,7 +14,20 @@ async function main() {
       : workflowArg === "deploy"
         ? cfg.workflows.deploy
         : workflowArg || cfg.workflows.setup;
-  const REF = process.argv[3] || cfg.github.branch || "main";
+  const deployWorker = process.argv.includes("--worker");
+  const REF =
+    process.argv.find((arg, i) => i >= 3 && !arg.startsWith("-")) ||
+    cfg.github.branch ||
+    "main";
+
+  const body = { ref: REF };
+  if (deployWorker && WORKFLOW === cfg.workflows.deploy) {
+    body.inputs = {
+      deploy_worker: "true",
+      run_migrations: "false",
+      deploy_all_functions: "false",
+    };
+  }
 
   const pat = getGitHubPat();
   const res = await fetch(
@@ -22,7 +35,7 @@ async function main() {
     {
       method: "POST",
       headers: { ...ghHeaders(pat), "Content-Type": "application/json" },
-      body: JSON.stringify({ ref: REF }),
+      body: JSON.stringify(body),
     },
   );
   if (!res.ok) {
