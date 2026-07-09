@@ -12,7 +12,6 @@
     "adminUrl": "https://supermastro.anchecasa.it/admin",
     "workersDevUrl": "https://supermastro-sos.palumbofernando12.workers.dev",
     "productionRoutes": [
-      "anchecasa.it/supermastro*",
       "anchecasa.it/sos*",
       "anchecasa.it/artigiano*",
       "anchecasa.it/admin*",

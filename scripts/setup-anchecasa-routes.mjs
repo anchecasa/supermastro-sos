@@ -9,7 +9,6 @@ import { loadDeployConfig } from "./deploy-config.mjs";
 
 const ZONE_NAME = "anchecasa.it";
 const ROUTES = [
-  "anchecasa.it/supermastro*",
   "anchecasa.it/sos*",
   "anchecasa.it/artigiano*",
   "anchecasa.it/admin*",
