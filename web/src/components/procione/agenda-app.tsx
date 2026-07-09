@@ -487,6 +487,7 @@ export function AgendaApp({
       const res = await fetch("/api/procione/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ draft: result.draft }),
       });
       const data = (await res.json()) as Parameters<typeof applyVoiceResult>[0] & { error?: string };
@@ -529,6 +530,7 @@ export function AgendaApp({
       const res = await fetch("/api/procione/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ draft: pendingDraft }),
       });
       const data = (await res.json()) as Parameters<typeof applyVoiceResult>[0] & { error?: string };
@@ -1185,12 +1187,16 @@ export function AgendaApp({
           <Sparkles className="h-3 w-3" />
           {voice.statusHint ??
             (voice.manualListening
-              ? "Ascolto… smetti di parlare per inviare"
+              ? voice.tapToStop
+                ? "Registro… tocca di nuovo il microfono per inviare"
+                : "Ascolto… smetti di parlare per inviare"
               : listening || voice.processing
-                ? "Ascolto… parla ora"
+                ? "Elaboro il comando…"
                 : voice.wakeEnabled
-                  ? "Di' «we we» — salvataggio immediato, annulla entro 5 sec"
-                  : "Consenti microfono · tap sullo schermo per «we we»")}
+                  ? "Di' «we we» o «wee wee» · salvato subito · annulla 5 sec"
+                  : voice.tapToStop
+                    ? "Tocca il microfono · parla · tocca di nuovo per salvare"
+                    : "Consenti microfono · tap sullo schermo per «we we»")}
         </p>
       </div>
     </div>

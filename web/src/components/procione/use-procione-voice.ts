@@ -82,13 +82,16 @@ import {
 } from "@/lib/procione/session";
 import { acquireDevicePosition } from "@/lib/sos/location";
 import { audioUploadName } from "@/lib/procione/audio-upload";
-import { ensureMicReady, getSharedMicStream } from "@/lib/procione/voice-permissions";
+import { ensureMicReady, acquireRecordingStream } from "@/lib/procione/voice-permissions";
 import {
   attachSilenceAutoStop,
+  canUsePhraseWake,
   getRecorderMimeType,
   getSpeechRecognition,
   preferRecorderCapture,
+  shouldUseTapToStop,
   speechErrorMessage,
+  startMediaRecorder,
   SILENCE_MS,
   type SpeechRecognitionCtor,
 } from "@/lib/procione/voice-capture";
@@ -133,8 +136,17 @@ type ManualSession = {
 
 const WAKE_HINT = "Di' «we we» — si apre l'agenda Procione";
 
-const MANUAL_LISTEN_HINT = "Parla… invio automatico quando smetti di parlare";
-const MANUAL_RECORD_HINT = "Registro… invio automatico quando smetti di parlare";
+function manualListenHint() {
+  return shouldUseTapToStop()
+    ? "Parla… tocca di nuovo il microfono per inviare"
+    : "Parla… invio automatico quando smetti di parlare";
+}
+
+function manualRecordHint() {
+  return shouldUseTapToStop()
+    ? "Registro… tocca di nuovo il microfono quando hai finito"
+    : "Registro… invio automatico quando smetti di parlare";
+}
 
 const MANUAL_CONFIRM_HINT = "Di' altro oppure «no» per memorizzare";
 
@@ -166,65 +178,49 @@ type ManualHandle =
 
 
 async function ensureMicrophoneAccess(): Promise<void> {
-  await ensureMicReady();
+  try {
+    await ensureMicReady();
+  } catch {
+    throw new Error("MIC_DENIED");
+  }
 }
 
 
 
 async function recordAudioBlob(maxMs = 9000): Promise<Blob> {
-
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
+  const { stream, release } = await acquireRecordingStream();
   const mimeType = getRecorderMimeType();
-
   const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-
   const chunks: Blob[] = [];
 
-
-
   return new Promise((resolve, reject) => {
-
     recorder.ondataavailable = (e) => {
-
       if (e.data.size) chunks.push(e.data);
-
     };
-
     recorder.onstop = () => {
-
-      stream.getTracks().forEach((t) => t.stop());
-
+      release();
       if (!chunks.length) {
-
         reject(new Error("Nessun audio registrato."));
-
         return;
-
       }
-
-      resolve(new Blob(chunks, { type: mimeType ?? chunks[0]?.type ?? "audio/webm" }));
-
+      resolve(new Blob(chunks, { type: mimeType ?? chunks[0]?.type ?? "audio/mp4" }));
     };
-
     recorder.onerror = () => {
-
-      stream.getTracks().forEach((t) => t.stop());
-
+      release();
       reject(new Error("Registrazione fallita."));
-
     };
-
-    recorder.start(250);
-
+    startMediaRecorder(recorder);
     setTimeout(() => {
-
-      if (recorder.state !== "inactive") recorder.stop();
-
+      if (recorder.state !== "inactive") {
+        try {
+          recorder.requestData();
+        } catch {
+          /* ignore */
+        }
+        recorder.stop();
+      }
     }, maxMs);
-
   });
-
 }
 
 
@@ -391,7 +387,19 @@ async function sendVoiceToApi(
 
 
 
-  const res = await fetch("/api/procione/voice", { method: "POST", body: form });
+  if (audio && audio.size < 800) {
+    throw new Error(
+      shouldUseTapToStop()
+        ? "Audio troppo breve. Parla almeno 2 secondi, poi tocca di nuovo il microfono."
+        : "Audio troppo breve. Parla più a lungo e riprova."
+    );
+  }
+
+  const res = await fetch("/api/procione/voice", {
+    method: "POST",
+    body: form,
+    credentials: "same-origin",
+  });
 
   const data = (await res.json()) as VoiceResult & { error?: string };
 
@@ -638,7 +646,11 @@ export function useProcioneVoice({
 
     } catch {
 
-      onError("Consenti l'accesso al microfono nelle impostazioni del browser.");
+      onError(
+        shouldUseTapToStop()
+          ? "Microfono negato. iPhone: Impostazioni → Safari → Microfono → Consenti per anchecasa.it"
+          : "Consenti l'accesso al microfono nelle impostazioni del browser."
+      );
 
       return;
 
@@ -650,7 +662,7 @@ export function useProcioneVoice({
 
     onListeningChange?.(true);
 
-    setStatusHint(MANUAL_LISTEN_HINT);
+    setStatusHint(manualListenHint());
 
     const Ctor = preferRecorderCapture() ? null : getSpeechRecognition();
 
@@ -673,59 +685,37 @@ export function useProcioneVoice({
       }
 
       try {
-
-        const stream = getSharedMicStream() ?? (await navigator.mediaDevices.getUserMedia({ audio: true }));
-
+        const { stream, release } = await acquireRecordingStream();
         const mimeType = getRecorderMimeType();
-
         const recorder = mimeType
-
           ? new MediaRecorder(stream, { mimeType })
-
           : new MediaRecorder(stream);
-
         const chunks: Blob[] = [];
 
         recorder.ondataavailable = (e) => {
-
           if (e.data.size) chunks.push(e.data);
-
         };
 
         let stopResolve!: (blob: Blob) => void;
-
         let stopReject!: (err: Error) => void;
 
         const blobPromise = new Promise<Blob>((resolve, reject) => {
-
           stopResolve = resolve;
-
           stopReject = reject;
-
         });
 
         recorder.onstop = () => {
-
-          stream.getTracks().forEach((t) => t.stop());
-
+          release();
           if (!chunks.length) {
-
-            stopReject(new Error("Nessun audio registrato."));
-
+            stopReject(new Error("Nessun audio registrato. Tocca il microfono, parla, tocca di nuovo."));
             return;
-
           }
-
-          stopResolve(new Blob(chunks, { type: mimeType ?? chunks[0]?.type ?? "audio/webm" }));
-
+          stopResolve(new Blob(chunks, { type: mimeType ?? chunks[0]?.type ?? "audio/mp4" }));
         };
 
         recorder.onerror = () => {
-
-          stream.getTracks().forEach((t) => t.stop());
-
+          release();
           stopReject(new Error("Registrazione fallita."));
-
         };
 
         let finished = false;
@@ -751,19 +741,21 @@ export function useProcioneVoice({
             finished = true;
             silenceCleanup?.();
             if (recorder.state !== "inactive") recorder.stop();
-            else stream.getTracks().forEach((t) => t.stop());
+            else release();
           },
         };
 
-        setStatusHint(MANUAL_RECORD_HINT);
-        recorder.start(250);
+        setStatusHint(manualRecordHint());
+        startMediaRecorder(recorder);
 
-        silenceCleanup = attachSilenceAutoStop(stream, () => {
-          if (manualRef.current?.mode === "recorder" && !finishingManualRef.current) {
-            finishManualListeningRef.current();
-          }
-        });
-        manualRef.current.cleanup = silenceCleanup;
+        if (!shouldUseTapToStop()) {
+          silenceCleanup = attachSilenceAutoStop(stream, () => {
+            if (manualRef.current?.mode === "recorder" && !finishingManualRef.current) {
+              finishManualListeningRef.current();
+            }
+          });
+          manualRef.current.cleanup = silenceCleanup;
+        }
 
       } catch {
 
@@ -1310,13 +1302,13 @@ export function useProcioneVoice({
         const text = event.results[i]?.[0]?.transcript ?? "";
         if (!containsWakePhrase(text)) continue;
 
-        handleWakeTriggeredRef.current(text);
-
         try {
           recognition.stop();
         } catch {
           /* ignore */
         }
+
+        handleWakeTriggeredRef.current(text);
 
         break;
       }
@@ -1410,7 +1402,11 @@ export function useProcioneVoice({
 
     } catch {
 
-      onError("Consenti l'accesso al microfono per usare Ehi Procione.");
+      onError(
+        shouldUseTapToStop()
+          ? "Consenti il microfono per Procione (Impostazioni → Safari → Microfono)."
+          : "Consenti l'accesso al microfono per usare Ehi Procione."
+      );
 
       return;
 
@@ -1505,11 +1501,12 @@ export function useProcioneVoice({
     const handle = startPhraseWakeWord();
 
     if (!handle) {
-
-      setStatusHint("Clicca il microfono per parlare con Procione");
-
+      if (shouldUseTapToStop()) {
+        setStatusHint("iPhone: tocca il microfono · parla · tocca di nuovo per inviare");
+      } else {
+        setStatusHint("Clicca il microfono per parlare con Procione");
+      }
       return;
-
     }
 
     wakeRef.current = handle;
@@ -1597,6 +1594,8 @@ export function useProcioneVoice({
     toggleManualVoice,
 
     runWithTranscript: runPipeline,
+
+    tapToStop: shouldUseTapToStop(),
 
   };
 
