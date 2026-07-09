@@ -1,4 +1,5 @@
 import { HardLink } from "@/components/layout/hard-link";
+import { SuperMastroWordmark } from "@/components/layout/supermastro-wordmark";
 import Image from "next/image";
 import { ItalyDemandMap } from "@/components/marketing/italy-demand-map";
 
@@ -138,12 +139,9 @@ export function SuperMastroLanding({
 
           </Badge>
 
-          <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight">
-
-            SuperMastro
-
+          <h1 className="mt-3">
+            <SuperMastroWordmark size="lg" />
           </h1>
-
           <p className="mt-2 max-w-md text-muted">
 
             Lavoro, recruitment e SOS casa — powered by AncheCasa.

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { HardLink } from "@/components/layout/hard-link";
+import { SuperMastroWordmark } from "@/components/layout/supermastro-wordmark";
 import { cn } from "@/lib/utils";
-
 const SUPERMASTRO_HOME_LOGO = "/images/supermastro-mezzobusto.png";
 
 type SiteHeaderProps = {
@@ -62,16 +62,20 @@ export function SiteHeader({
           aria-label={product === "supermastro" ? "SuperMastro" : label}
         >
           {product === "supermastro" ? (
-            <Image
-              src={SUPERMASTRO_HOME_LOGO}
-              alt="SuperMastro"
-              width={56}
-              height={56}
-              className="h-12 w-auto sm:h-14"
-              priority
-            />
-          ) : (
-            <span className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+              <Image
+                src={SUPERMASTRO_HOME_LOGO}
+                alt=""
+                width={40}
+                height={40}
+                className="h-9 w-9 shrink-0 object-contain drop-shadow-md sm:h-10 sm:w-10"
+                priority
+              />
+              <div className="flex min-w-0 flex-col leading-tight">
+                <SuperMastroWordmark size="sm" className="truncate" />
+              </div>
+            </div>
+          ) : (            <span className="min-w-0">
               <span className="block truncate text-sm font-semibold tracking-tight text-foreground">
                 {label}
               </span>
