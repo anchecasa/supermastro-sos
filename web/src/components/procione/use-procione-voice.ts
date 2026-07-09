@@ -155,9 +155,13 @@ const MANUAL_CONFIRM_HINT = "Di' altro oppure «no» per memorizzare";
 
 const FOLLOW_UP_QUESTION = "Hai altro da aggiungere? Di' no per memorizzare.";
 
-const SILENCE_MS = 2200;
+const SILENCE_MS = 2800;
 
-
+/** Su mobile il SpeechRecognition del browser si chiude subito: usiamo MediaRecorder + Whisper. */
+function preferRecorderCapture(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
+}
 
 function getSpeechRecognition(): SpeechRecognitionCtor | null {
 
@@ -574,6 +578,7 @@ export function useProcioneVoice({
   const finishingManualRef = useRef(false);
   const handleManualUtteranceRef = useRef<(text: string) => Promise<void>>(async () => {});
   const startManualListeningRef = useRef<() => void>(() => {});
+  const lastMicToggleRef = useRef(0);
 
   const pauseWake = useCallback(() => {
 
@@ -744,7 +749,7 @@ export function useProcioneVoice({
 
     setStatusHint(MANUAL_LISTEN_HINT);
 
-    const Ctor = getSpeechRecognition();
+    const Ctor = preferRecorderCapture() ? null : getSpeechRecognition();
 
     if (!Ctor) {
 
@@ -1004,15 +1009,7 @@ export function useProcioneVoice({
 
     recognition.onerror = (event) => {
 
-      if (event.error === "no-speech") {
-
-        scheduleSilence();
-
-        return;
-
-      }
-
-      if (event.error === "aborted") return;
+      if (event.error === "no-speech" || event.error === "aborted") return;
 
       stopManualRecognition();
 
@@ -1026,9 +1023,31 @@ export function useProcioneVoice({
 
     recognition.onend = () => {
 
-      if (!stopped && manualRef.current) {
+      if (stopped || !manualRef.current) return;
 
-        scheduleSilence();
+      try {
+
+        recognition.start();
+
+      } catch {
+
+        window.setTimeout(() => {
+
+          if (!stopped && manualRef.current) {
+
+            try {
+
+              recognition.start();
+
+            } catch {
+
+              /* ignore */
+
+            }
+
+          }
+
+        }, 300);
 
       }
 
@@ -1039,8 +1058,6 @@ export function useProcioneVoice({
     try {
 
       recognition.start();
-
-      scheduleSilence();
 
     } catch {
 
@@ -1060,7 +1077,9 @@ export function useProcioneVoice({
 
     async (text: string) => {
 
-      if (!text) {
+      if (!text.trim()) {
+
+        onError("Non ho sentito nulla. Parla e clicca di nuovo il microfono per inviare.");
 
         resumeWake();
 
@@ -1074,7 +1093,7 @@ export function useProcioneVoice({
 
     },
 
-    [executeTranscript, resumeWake]
+    [executeTranscript, onError, resumeWake]
 
   );
 
@@ -1189,6 +1208,12 @@ export function useProcioneVoice({
 
 
   const toggleManualVoice = useCallback(() => {
+
+    const now = Date.now();
+
+    if (now - lastMicToggleRef.current < 450) return;
+
+    lastMicToggleRef.current = now;
 
     if (manualListening) {
 
@@ -1628,7 +1653,7 @@ export function useProcioneVoice({
 
   useEffect(() => {
 
-    if (!autoWake) return;
+    if (!autoWake || preferRecorderCapture()) return;
 
     void enableWakeWord();
 
