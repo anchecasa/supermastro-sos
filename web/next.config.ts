@@ -14,10 +14,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: dirname(fileURLToPath(import.meta.url)),
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [
+        ...(Array.isArray(config.externals) ? config.externals : []),
+        "@picovoice/porcupine-web",
+        "@picovoice/web-voice-processor",
+      ];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
-
-// initOpenNextCloudflareForDev() omitted: it routes server actions through a stale
-// Wrangler worker bundle with placeholder Supabase env. Use `npm run preview` for
-// Cloudflare parity; `next dev` reads web/.env.local directly.
