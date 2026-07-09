@@ -1,9 +1,9 @@
 {
-  "id": "/agenda/",
+  "id": "https://anchecasa.it/agenda/",
   "name": "Agenda Procione — AncheCasa",
   "short_name": "Agenda",
   "description": "Agenda vocale admin — di' «we we» per aprire, ascolto stile Siri",
-  "start_url": "/agenda",
+  "start_url": "https://anchecasa.it/agenda/",
   "scope": "/agenda/",
   "display": "standalone",
   "background_color": "#1a1a1a",
@@ -23,7 +23,7 @@
     {
       "name": "Agenda vocale",
       "short_name": "Agenda",
-      "url": "/agenda",
+      "url": "https://anchecasa.it/agenda",
       "icons": [{ "src": "/images/supermastro-mezzobusto.png", "sizes": "512x512" }]
     }
   ],
