@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { HardLink } from "@/components/layout/hard-link";
 import { cn } from "@/lib/utils";
 
 const SUPERMASTRO_HOME_LOGO = "/images/supermastro-mezzobusto.png";
@@ -56,7 +56,7 @@ export function SiteHeader({
       )}
     >
       <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
-        <Link
+        <HardLink
           href={home}
           className="group flex shrink-0 items-center"
           aria-label={product === "supermastro" ? "SuperMastro" : label}
@@ -80,19 +80,19 @@ export function SiteHeader({
               </span>
             </span>
           )}
-        </Link>
+        </HardLink>
 
         <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
           {!hideSecondaryLink && (
-            <Link
+            <HardLink
               href={secondaryHref}
               className="hidden text-xs font-medium text-muted transition-colors hover:text-foreground sm:inline"
             >
               {secondaryLabel}
-            </Link>
+            </HardLink>
           )}
           {ctaHref && ctaLabel && (
-            <Link
+            <HardLink
               href={ctaHref}
               className={cn(
                 "inline-flex h-9 max-w-[9.5rem] shrink items-center justify-center rounded-full px-3 text-center text-xs font-semibold leading-tight text-white shadow-sm transition sm:max-w-none sm:px-4",
@@ -102,7 +102,7 @@ export function SiteHeader({
               )}
             >
               {ctaLabel}
-            </Link>
+            </HardLink>
           )}
         </div>
       </div>

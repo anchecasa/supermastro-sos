@@ -1,7 +1,5 @@
-import Link from "next/link";
-
+import { HardLink } from "@/components/layout/hard-link";
 import Image from "next/image";
-
 import { ItalyDemandMap } from "@/components/marketing/italy-demand-map";
 
 import { HowItWorksSteps } from "@/components/marketing/how-it-works-steps";
@@ -212,7 +210,7 @@ export function SuperMastroLanding({
 
                     <Button asChild variant={s.title === "Cerco lavoro" ? "client" : "outline"} size="sm">
 
-                      <Link href={s.href}>{s.cta}</Link>
+                      <HardLink href={s.href}>{s.cta}</HardLink>
 
                     </Button>
 
@@ -220,11 +218,9 @@ export function SuperMastroLanding({
 
                     <Button asChild variant="client" size="sm">
 
-                      <Link href={demoMode || userEmail ? startHref : loginHref}>
-
+                      <HardLink href={demoMode || userEmail ? startHref : loginHref}>
                         SOS
-
-                      </Link>
+                      </HardLink>
 
                     </Button>
 
@@ -266,11 +262,7 @@ export function SuperMastroLanding({
 
                 <Button asChild variant="client" size="lg">
 
-                  <Link href={startHref}>
-
-                    Invia richiesta SOS
-
-                  </Link>
+                  <HardLink href={startHref}>Invia richiesta SOS</HardLink>
 
                 </Button>
 
@@ -328,23 +320,19 @@ export function SuperMastroLanding({
 
             <Button asChild variant="client" size="lg">
 
-              <Link href="/supermastro/lavoro">Cerco lavoro</Link>
+              <HardLink href="/supermastro/lavoro">Cerco lavoro</HardLink>
 
             </Button>
 
             <Button asChild variant="outline" size="lg">
 
-              <Link href="/lavoro/assumi">Cerco personale</Link>
+              <HardLink href="/lavoro/assumi">Cerco personale</HardLink>
 
             </Button>
 
             <Button asChild variant="outline" size="lg">
 
-              <Link href={demoMode || userEmail ? startHref : loginHref}>
-
-                SOS casa
-
-              </Link>
+              <HardLink href={demoMode || userEmail ? startHref : loginHref}>SOS casa</HardLink>
 
             </Button>
 
@@ -364,35 +352,11 @@ export function SuperMastroLanding({
 
           <div className="flex flex-wrap gap-x-5 gap-y-2">
 
-            <Link href="/lavoro" className="hover:text-foreground">
-
-              Talent pool
-
-            </Link>
-
-            <Link href="/supermastro/privacy" className="hover:text-foreground">
-
-              Privacy
-
-            </Link>
-
-            <Link href="/supermastro/termini" className="hover:text-foreground">
-
-              Termini
-
-            </Link>
-
-            <Link href="/supermastro/cookie" className="hover:text-foreground">
-
-              Cookie
-
-            </Link>
-
-            <Link href="/supermastro/profilo" className="hover:text-foreground">
-
-              Il mio profilo
-
-            </Link>
+            <HardLink href="/lavoro" className="hover:text-foreground">Talent pool</HardLink>
+            <HardLink href="/supermastro/privacy" className="hover:text-foreground">Privacy</HardLink>
+            <HardLink href="/supermastro/termini" className="hover:text-foreground">Termini</HardLink>
+            <HardLink href="/supermastro/cookie" className="hover:text-foreground">Cookie</HardLink>
+            <HardLink href="/supermastro/profilo" className="hover:text-foreground">Il mio profilo</HardLink>
 
           </div>
 

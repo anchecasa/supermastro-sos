@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
+import { HardLink } from "@/components/layout/hard-link";
 import { sendMagicLink, type AuthActionState } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,14 +59,14 @@ export function ClientEmailModule({ loginHref, nextPath = "/supermastro/nuova" }
 
       <p className="mt-4 text-center text-xs text-muted">
         Sei un mastro?{" "}
-        <Link href="/artigiano" className="font-medium text-brand hover:underline">
+        <HardLink href="/artigiano" className="font-medium text-brand hover:underline">
           Iscriviti qui
-        </Link>
+        </HardLink>
       </p>
       <p className="mt-2 text-center text-xs text-muted">
-        <Link href={loginHref} className="hover:underline">
+        <HardLink href={loginHref} className="hover:underline">
           Pagina accesso dedicata
-        </Link>
+        </HardLink>
       </p>
     </div>
   );
