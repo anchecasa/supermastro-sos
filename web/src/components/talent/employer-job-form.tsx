@@ -2,8 +2,12 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { submitEmployerJobRequest, type EmployerActionState } from "@/app/lavoro/actions";
-import { sendMagicLink, type AuthActionState } from "@/app/auth/actions";
+import {
+  sendEmployerConfirmationEmail,
+  submitEmployerJobRequest,
+  type EmployerActionState,
+} from "@/app/lavoro/actions";
+import type { AuthActionState } from "@/app/auth/actions";
 import {
   WORKER_SKILL_CATALOG,
   SKILL_SECTOR_LABELS,
@@ -22,7 +26,10 @@ type Props = {
 
 export function EmployerJobForm({ userEmail }: Props) {
   const [state, formAction, pending] = useActionState(submitEmployerJobRequest, employerInitial);
-  const [authState, authAction, authPending] = useActionState(sendMagicLink, authInitial);
+  const [authState, authAction, authPending] = useActionState(
+    sendEmployerConfirmationEmail,
+    authInitial
+  );
 
   const sectors = Object.keys(SKILL_SECTOR_LABELS) as SkillSector[];
 
@@ -34,13 +41,27 @@ export function EmployerJobForm({ userEmail }: Props) {
           Condominio, hotel o ditta: trova personale nel talent pool AncheCasa.
         </p>
         <form action={authAction} className="mt-5 space-y-4">
-          <input type="hidden" name="role" value="client" />
-          <input type="hidden" name="next" value="/lavoro/assumi" />
           <Input name="email" type="email" required placeholder="referente@email.it" />
+          <label className="flex items-start gap-2 text-sm text-muted">
+            <input type="checkbox" required className="mt-1 rounded border-[var(--border)]" />
+            <span>
+              Accetto{" "}
+              <Link href="/supermastro/privacy" className="text-brand underline">
+                privacy
+              </Link>{" "}
+              e{" "}
+              <Link href="/supermastro/termini" className="text-brand underline">
+                termini
+              </Link>{" "}
+              del servizio recruitment AncheCasa.
+            </span>
+          </label>
           {authState.error && <p className="text-sm text-red-600">{authState.error}</p>}
-          {authState.success && <p className="text-sm text-green-700">{authState.success}</p>}
-          <Button type="submit" variant="client" className="w-full" disabled={authPending}>
-            {authPending ? "Invio…" : "Continua con magic link"}
+          {authState.success && (
+            <p className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{authState.success}</p>
+          )}
+          <Button type="submit" variant="client" className="w-full" disabled={authPending || !!authState.success}>
+            {authPending ? "Invio email…" : authState.success ? "Email inviata" : "Invia email di conferma"}
           </Button>
         </form>
       </div>

@@ -3,6 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { getAuthCallbackUrl } from "@/lib/constants";
+import type { AuthActionState } from "@/app/auth/actions";
+import { translateAuthError } from "@/app/auth/errors";
 import type { AvailabilityType, OrganizationType } from "@/lib/constants";
 import {
   WORKER_SKILL_SLUGS,
@@ -13,6 +17,42 @@ import {
 export type TalentOnboardingState = { error?: string; success?: string };
 export type EmployerActionState = { error?: string; success?: string; jobId?: string };
 export type JobResponseState = { error?: string; success?: string };
+
+/** Invia email di conferma (Supabase Auth) per accedere e pubblicare un annuncio datore. */
+export async function sendEmployerConfirmationEmail(
+  _prev: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) {
+    return { error: "Inserisci la tua email." };
+  }
+
+  const headersList = await headers();
+  const origin =
+    headersList.get("origin") ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000";
+  const redirectTo = getAuthCallbackUrl("client", origin, "/lavoro/assumi");
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: redirectTo,
+      shouldCreateUser: true,
+    },
+  });
+
+  if (error) {
+    return { error: translateAuthError(error.message) };
+  }
+
+  return {
+    success:
+      "Ti abbiamo inviato un'email di conferma con il logo SuperMastro. Clicca il pulsante nell'email per accedere e pubblicare l'annuncio.",
+  };
+}
 
 export async function submitTalentOnboarding(
   _prev: TalentOnboardingState,

@@ -11,6 +11,12 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync, execSync } from "node:child_process";
 import pg from "pg";
+import {
+  SUPABASE_EMPLOYER_CONFIRMATION_TEMPLATE,
+  SUPABASE_EMPLOYER_CONFIRMATION_SUBJECT,
+  SUPABASE_MAGIC_LINK_TEMPLATE,
+  SUPABASE_MAGIC_LINK_SUBJECT,
+} from "./email-templates.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -340,14 +346,8 @@ function mergeRedirectAllowList(current) {
   return [...set].join(",");
 }
 
-/** Link diretto all'app — evita l'endpoint supabase.co/auth/v1/verify (PKCE rotto). */
-const MAGIC_LINK_TEMPLATE = `<h2>Accedi a SuperMastro</h2>
-<p>Clicca per entrare (link valido una sola volta):</p>
-<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink">Accedi ora</a></p>
-<p style="color:#666;font-size:12px">Apri il link nello stesso browser dove hai richiesto l'accesso.</p>`;
-
-const CONFIRMATION_TEMPLATE = `<h2>Conferma email SuperMastro</h2>
-<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=signup">Conferma e accedi</a></p>`;
+/** Template email Auth — link diretto app (no supabase.co/verify). */
+const CONFIRMATION_TEMPLATE = SUPABASE_MAGIC_LINK_TEMPLATE;
 
 async function configureAuth(token) {
   const current = await mgmt("GET", `/projects/${PROJECT_REF}/config/auth`, token);
@@ -356,14 +356,14 @@ async function configureAuth(token) {
     uri_allow_list,
     mailer_autoconfirm: true,
     site_url: "http://localhost:3000",
-    mailer_subjects_magic_link: "Accedi a SuperMastro",
-    mailer_templates_magic_link_content: MAGIC_LINK_TEMPLATE,
-    mailer_subjects_confirmation: "Conferma email SuperMastro",
+    mailer_subjects_magic_link: SUPABASE_EMPLOYER_CONFIRMATION_SUBJECT,
+    mailer_templates_magic_link_content: SUPABASE_EMPLOYER_CONFIRMATION_TEMPLATE,
+    mailer_subjects_confirmation: SUPABASE_MAGIC_LINK_SUBJECT,
     mailer_templates_confirmation_content: CONFIRMATION_TEMPLATE,
   };
 
   await mgmt("PATCH", `/projects/${PROJECT_REF}/config/auth`, token, patch);
-  console.log("  Email template: magic link → app /auth/confirm (no supabase verify)");
+  console.log("  Email template: conferma datore con logo SuperMastro");
   return uri_allow_list.split(",").length;
 }
 

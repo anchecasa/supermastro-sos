@@ -10,26 +10,13 @@ import {
 } from "@/lib/constants";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { translateAuthError } from "@/app/auth/errors";
 
 export type AuthActionState = {
   error?: string;
   success?: string;
   directLink?: string;
 };
-
-function translateAuthError(message: string): string {
-  const rateMatch = message.match(/after (\d+) seconds?/i);
-  if (rateMatch) {
-    return `Per sicurezza, attendi ${rateMatch[1]} secondi prima di richiedere un nuovo link.`;
-  }
-  if (message.toLowerCase().includes("rate limit")) {
-    return "Troppi tentativi. Attendi un minuto e riprova.";
-  }
-  if (message.toLowerCase().includes("invalid email")) {
-    return "Indirizzo email non valido.";
-  }
-  return message;
-}
 
 export async function sendMagicLink(
   _prev: AuthActionState,
