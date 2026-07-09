@@ -81,6 +81,7 @@ import {
   type ProcioneVoiceSession,
 } from "@/lib/procione/session";
 import { acquireDevicePosition } from "@/lib/sos/location";
+import { audioUploadName } from "@/lib/procione/audio-upload";
 
 
 
@@ -148,8 +149,8 @@ type ManualSession = {
 
 const WAKE_HINT = "Di' «we we» — si apre l'agenda Procione";
 
-const MANUAL_LISTEN_HINT = "Parla… clicca di nuovo il microfono quando hai finito";
-const MANUAL_RECORD_HINT = "Registro… clicca di nuovo il microfono per inviare";
+const MANUAL_LISTEN_HINT = "Parla… invio automatico quando smetti di parlare";
+const MANUAL_RECORD_HINT = "Registro… invio automatico quando smetti di parlare";
 
 const MANUAL_CONFIRM_HINT = "Di' altro oppure «no» per memorizzare";
 
@@ -157,10 +158,67 @@ const FOLLOW_UP_QUESTION = "Hai altro da aggiungere? Di' no per memorizzare.";
 
 const SILENCE_MS = 2800;
 
-/** Su mobile il SpeechRecognition del browser si chiude subito: usiamo MediaRecorder + Whisper. */
+/** Su mobile/Safari il SpeechRecognition del browser è inaffidabile: usiamo MediaRecorder + Whisper. */
 function preferRecorderCapture(): boolean {
   if (typeof navigator === "undefined") return false;
-  return /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
+  if (/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)) return true;
+  const ua = navigator.userAgent;
+  if (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR/i.test(ua)) return true;
+  return !getSpeechRecognition();
+}
+
+function attachSilenceAutoStop(
+  stream: MediaStream,
+  onSilence: () => void,
+  silenceMs = SILENCE_MS,
+  minRecordMs = 700
+): () => void {
+  const audioCtx = new AudioContext();
+  const source = audioCtx.createMediaStreamSource(stream);
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  const data = new Uint8Array(analyser.fftSize);
+  const startedAt = Date.now();
+  let silenceStart: number | null = null;
+  let raf = 0;
+  let done = false;
+
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    cancelAnimationFrame(raf);
+    source.disconnect();
+    void audioCtx.close();
+  };
+
+  const tick = () => {
+    if (done) return;
+    analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = (data[i] - 128) / 128;
+      sum += v * v;
+    }
+    const rms = Math.sqrt(sum / data.length);
+    const loud = rms > 0.018;
+    const elapsed = Date.now() - startedAt;
+
+    if (loud) {
+      silenceStart = null;
+    } else if (elapsed >= minRecordMs) {
+      silenceStart ??= Date.now();
+      if (Date.now() - silenceStart >= silenceMs) {
+        cleanup();
+        onSilence();
+        return;
+      }
+    }
+    raf = requestAnimationFrame(tick);
+  };
+
+  raf = requestAnimationFrame(tick);
+  return cleanup;
 }
 
 function getSpeechRecognition(): SpeechRecognitionCtor | null {
@@ -250,7 +308,7 @@ async function isWhisperAvailable(): Promise<boolean> {
 
 type ManualHandle =
   | { mode: "speech"; getText: () => string; abort: () => void }
-  | { mode: "recorder"; finish: () => Promise<Blob>; abort: () => void };
+  | { mode: "recorder"; finish: () => Promise<Blob>; abort: () => void; cleanup?: () => void };
 
 
 
@@ -452,7 +510,10 @@ async function sendVoiceToApi(
 
   const form = new FormData();
 
-  if (audio) form.append("audio", audio, "voice.webm");
+  if (audio) {
+    const mime = audio.type || "audio/webm";
+    form.append("audio", audio, audioUploadName(mime));
+  }
 
   if (transcript) form.append("transcript", transcript);
 
@@ -578,6 +639,7 @@ export function useProcioneVoice({
   const finishingManualRef = useRef(false);
   const handleManualUtteranceRef = useRef<(text: string) => Promise<void>>(async () => {});
   const startManualListeningRef = useRef<() => void>(() => {});
+  const finishManualListeningRef = useRef<() => void>(() => {});
   const lastMicToggleRef = useRef(0);
 
   const pauseWake = useCallback(() => {
@@ -601,27 +663,17 @@ export function useProcioneVoice({
 
 
   const stopManualRecognition = useCallback(() => {
-
     const handle = manualRef.current;
-
     if (!handle) return;
-
     manualRef.current = null;
-
+    if (handle.mode === "recorder") handle.cleanup?.();
     try {
-
       handle.abort();
-
     } catch {
-
       /* ignore */
-
     }
-
     setManualListening(false);
-
     onListeningChange?.(false);
-
   }, [onListeningChange]);
 
 
@@ -826,38 +878,41 @@ export function useProcioneVoice({
         };
 
         let finished = false;
+        let silenceCleanup: (() => void) | undefined;
 
         manualRef.current = {
-
           mode: "recorder",
-
           finish: () => {
-
             if (finished) return blobPromise;
-
             finished = true;
-
-            if (recorder.state !== "inactive") recorder.stop();
-
+            silenceCleanup?.();
+            if (recorder.state === "recording") {
+              try {
+                recorder.requestData();
+              } catch {
+                /* ignore */
+              }
+              recorder.stop();
+            }
             return blobPromise;
-
           },
-
           abort: () => {
-
             finished = true;
-
+            silenceCleanup?.();
             if (recorder.state !== "inactive") recorder.stop();
-
             else stream.getTracks().forEach((t) => t.stop());
-
           },
-
         };
 
         setStatusHint(MANUAL_RECORD_HINT);
-
         recorder.start(250);
+
+        silenceCleanup = attachSilenceAutoStop(stream, () => {
+          if (manualRef.current?.mode === "recorder" && !finishingManualRef.current) {
+            finishManualListeningRef.current();
+          }
+        });
+        manualRef.current.cleanup = silenceCleanup;
 
       } catch {
 
@@ -888,7 +943,7 @@ export function useProcioneVoice({
 
 
     let collected = "";
-
+    let interim = "";
     let resultIndex = 0;
 
     let silenceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -930,13 +985,9 @@ export function useProcioneVoice({
 
 
     manualRef.current = {
-
       mode: "speech",
-
-      getText: () => collected,
-
+      getText: () => (collected || interim).trim(),
       abort: abortRecognition,
-
     };
 
 
@@ -982,27 +1033,21 @@ export function useProcioneVoice({
 
 
     recognition.onresult = (event) => {
-
+      let latestInterim = "";
       for (let i = resultIndex; i < event.results.length; i++) {
-
         const result = event.results[i];
-
-        if (!result?.isFinal) continue;
-
         const piece = result[0]?.transcript?.trim() ?? "";
-
-        if (piece) {
-
+        if (!piece) continue;
+        if (result?.isFinal) {
           collected = collected ? `${collected} ${piece}` : piece;
-
+          interim = "";
+          resultIndex = i + 1;
+        } else {
+          latestInterim = piece;
         }
-
-        resultIndex = i + 1;
-
       }
-
-      if (collected) scheduleSilence();
-
+      if (latestInterim) interim = latestInterim;
+      if (collected || interim) scheduleSilence();
     };
 
 
@@ -1186,29 +1231,19 @@ export function useProcioneVoice({
     })();
 
   }, [
-
     buildApiContext,
-
     deliverResult,
-
     handleManualUtterance,
-
     onError,
-
     onListeningChange,
-
     pauseWake,
-
     resumeWake,
-
     stopManualRecognition,
-
   ]);
 
-
+  finishManualListeningRef.current = finishManualListening;
 
   const toggleManualVoice = useCallback(() => {
-
     const now = Date.now();
 
     if (now - lastMicToggleRef.current < 450) return;

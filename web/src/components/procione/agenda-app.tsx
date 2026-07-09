@@ -458,6 +458,11 @@ export function AgendaApp({
     },
     onResult: (result) => {
       void applyVoiceResult(result);
+      if (result.reply && (result.type === "draft" || result.awaitingConfirm)) {
+        void procioneSpeak.speak(result.reply);
+      } else if (result.reply && result.type !== "unknown") {
+        void procioneSpeak.speak(result.reply.slice(0, 220));
+      }
     },
   });
 
@@ -1026,7 +1031,7 @@ export function AgendaApp({
           <Sparkles className="h-3 w-3" />
           {voice.statusHint ??
             (voice.manualListening
-              ? "Ascolto… clicca di nuovo per finire"
+              ? "Ascolto… smetti di parlare per inviare"
               : listening || voice.processing
                 ? "Ascolto… parla ora"
                 : voice.wakeEnabled

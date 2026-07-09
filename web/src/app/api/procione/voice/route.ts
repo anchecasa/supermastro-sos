@@ -56,136 +56,152 @@ function parseSessionField(form: FormData) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireProcioneApiUser();
-  if ("error" in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
-  const { supabase, user } = auth;
-  const form = await request.formData();
-  const audio = form.get("audio");
-  const transcriptField = form.get("transcript");
-  const pendingDraftField = form.get("pendingDraft");
-  const historyField = form.get("history");
-  const session = parseSessionField(form);
-  const latField = form.get("lat");
-  const lngField = form.get("lng");
-  const lat = typeof latField === "string" && latField.trim() ? Number(latField) : undefined;
-  const lng = typeof lngField === "string" && lngField.trim() ? Number(lngField) : undefined;
-
-  let transcript = typeof transcriptField === "string" ? transcriptField.trim() : "";
-
-  let pendingDraft: ProcioneDraft | null = null;
-  if (typeof pendingDraftField === "string" && pendingDraftField.trim()) {
-    try {
-      pendingDraft = JSON.parse(pendingDraftField) as ProcioneDraft;
-    } catch {
-      pendingDraft = null;
+  try {
+    const auth = await requireProcioneApiUser();
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-  }
 
-  let history: ChatTurn[] = [];
-  if (typeof historyField === "string" && historyField.trim()) {
-    try {
-      history = JSON.parse(historyField) as ChatTurn[];
-    } catch {
-      history = [];
+    const { supabase, user } = auth;
+    const form = await request.formData();
+    const audio = form.get("audio");
+    const transcriptField = form.get("transcript");
+    const pendingDraftField = form.get("pendingDraft");
+    const historyField = form.get("history");
+    const session = parseSessionField(form);
+    const latField = form.get("lat");
+    const lngField = form.get("lng");
+    const lat = typeof latField === "string" && latField.trim() ? Number(latField) : undefined;
+    const lng = typeof lngField === "string" && lngField.trim() ? Number(lngField) : undefined;
+
+    let transcript = typeof transcriptField === "string" ? transcriptField.trim() : "";
+
+    let pendingDraft: ProcioneDraft | null = null;
+    if (typeof pendingDraftField === "string" && pendingDraftField.trim()) {
+      try {
+        pendingDraft = JSON.parse(pendingDraftField) as ProcioneDraft;
+      } catch {
+        pendingDraft = null;
+      }
     }
-  }
 
-  const env = getProcioneEnv();
-
-  if (!transcript && audio instanceof Blob) {
-    if (!isOpenAiConfigured()) {
-      return NextResponse.json(
-        {
-          error:
-            "Whisper non configurato. Usa Chrome/Edge: il browser trascrive in italiano senza OpenAI.",
-        },
-        { status: 503 }
-      );
+    let history: ChatTurn[] = [];
+    if (typeof historyField === "string" && historyField.trim()) {
+      try {
+        history = JSON.parse(historyField) as ChatTurn[];
+      } catch {
+        history = [];
+      }
     }
-    const buffer = Buffer.from(await audio.arrayBuffer());
-    transcript = await transcribeWithWhisper(env.openaiKey, buffer, audio.type || "audio/webm");
-  }
 
-  if (!transcript) {
-    return NextResponse.json({ error: "Nessun audio o trascrizione." }, { status: 400 });
-  }
+    const env = getProcioneEnv();
 
-  let parsed = null;
-  if (isOpenAiConfigured()) {
-    const { loadProcioneContext } = await import("@/lib/procione/context");
-    const ctx = await loadProcioneContext(supabase, user.id, {
-      dataMode: session.dataMode,
-      demoSnapshot: session.demoSnapshot,
+    if (!transcript && audio instanceof Blob) {
+      if (!isOpenAiConfigured()) {
+        return NextResponse.json(
+          {
+            error:
+              "Whisper non configurato. Usa Chrome/Edge: il browser trascrive in italiano senza OpenAI.",
+          },
+          { status: 503 }
+        );
+      }
+      if (audio.size < 800) {
+        return NextResponse.json(
+          { error: "Audio troppo breve. Parla almeno 1 secondo e riprova." },
+          { status: 400 }
+        );
+      }
+      const buffer = Buffer.from(await audio.arrayBuffer());
+      transcript = await transcribeWithWhisper(env.openaiKey, buffer, audio.type || "audio/webm");
+    }
+
+    if (!transcript) {
+      return NextResponse.json({ error: "Nessun audio o trascrizione." }, { status: 400 });
+    }
+
+    let parsed = null;
+    if (isOpenAiConfigured()) {
+      const { loadProcioneContext } = await import("@/lib/procione/context");
+      const ctx = await loadProcioneContext(supabase, user.id, {
+        dataMode: session.dataMode,
+        demoSnapshot: session.demoSnapshot,
+      });
+      parsed = await parseWithGpt(env.openaiKey, env.openaiModel, transcript, ctx.contextBlock);
+    }
+
+    const result = await executeParsedCommand(supabase, user.id, parsed, transcript, {
+      pendingDraft,
+      history,
+      session,
+      lat: Number.isFinite(lat) ? lat : undefined,
+      lng: Number.isFinite(lng) ? lng : undefined,
     });
-    parsed = await parseWithGpt(env.openaiKey, env.openaiModel, transcript, ctx.contextBlock);
-  }
 
-  const result = await executeParsedCommand(supabase, user.id, parsed, transcript, {
-    pendingDraft,
-    history,
-    session,
-    lat: Number.isFinite(lat) ? lat : undefined,
-    lng: Number.isFinite(lng) ? lng : undefined,
-  });
+    await supabase.from("assistant_voice_log").insert([
+      { owner_id: user.id, role: "user", content: transcript, action_type: "query" },
+      {
+        owner_id: user.id,
+        role: "assistant",
+        content: result.reply,
+        action_type:
+          result.type === "unknown"
+            ? "query"
+            : (["appointment", "contact", "task", "query", "multi", "call", "whatsapp", "navigate", "chat", "draft"].includes(
+                result.type
+              )
+                ? result.type
+                : "query"),
+      },
+    ]);
 
-  await supabase.from("assistant_voice_log").insert([
-    { owner_id: user.id, role: "user", content: transcript, action_type: "query" },
-    {
-      owner_id: user.id,
-      role: "assistant",
-      content: result.reply,
-      action_type:
-        result.type === "unknown"
-          ? "query"
-          : (["appointment", "contact", "task", "query", "multi", "call", "whatsapp", "navigate", "chat", "draft"].includes(
-              result.type
-            )
-              ? result.type
-              : "query"),
-    },
-  ]);
-
-  let audioBase64: string | undefined;
-  if (isElevenLabsConfigured()) {
-    try {
-      const audioBuf = await synthesizeSpeech(env.elevenLabsKey, env.elevenLabsVoiceId, result.reply);
-      audioBase64 = audioBuf.toString("base64");
-    } catch {
-      // risposta testuale sufficiente
+    let audioBase64: string | undefined;
+    if (isElevenLabsConfigured()) {
+      try {
+        const audioBuf = await synthesizeSpeech(env.elevenLabsKey, env.elevenLabsVoiceId, result.reply);
+        audioBase64 = audioBuf.toString("base64");
+      } catch {
+        // risposta testuale sufficiente
+      }
     }
-  }
 
-  return NextResponse.json({
-    transcript,
-    reply: result.reply,
-    type: result.type,
-    appointment: result.appointment,
-    appointments: result.appointments,
-    contact: result.contact,
-    contacts: result.contacts,
-    call: result.call,
-    whatsapp: result.whatsapp,
-    rubricaAction: result.rubricaAction,
-    rubricaSearch: result.rubricaSearch,
-    agendaAction: result.agendaAction,
-    navigate: result.navigate,
-    draft: result.draft,
-    awaitingConfirm: result.awaitingConfirm,
-    sessionActive: result.sessionActive,
-    dataMode: result.dataMode,
-    meetingContext: result.meetingContext,
-    demoSnapshot: result.demoSnapshot,
-    lastConciergeSearch: result.lastConciergeSearch,
-    concierge: result.concierge,
-    placeFavorite: result.placeFavorite,
-    task: result.task,
-    tasks: result.tasks,
-    audioBase64,
-    audioMime: audioBase64 ? "audio/mpeg" : undefined,
-  });
+    return NextResponse.json({
+      transcript,
+      reply: result.reply,
+      type: result.type,
+      appointment: result.appointment,
+      appointments: result.appointments,
+      contact: result.contact,
+      contacts: result.contacts,
+      call: result.call,
+      whatsapp: result.whatsapp,
+      rubricaAction: result.rubricaAction,
+      rubricaSearch: result.rubricaSearch,
+      agendaAction: result.agendaAction,
+      navigate: result.navigate,
+      draft: result.draft,
+      awaitingConfirm: result.awaitingConfirm,
+      sessionActive: result.sessionActive,
+      dataMode: result.dataMode,
+      meetingContext: result.meetingContext,
+      demoSnapshot: result.demoSnapshot,
+      lastConciergeSearch: result.lastConciergeSearch,
+      concierge: result.concierge,
+      placeFavorite: result.placeFavorite,
+      task: result.task,
+      tasks: result.tasks,
+      audioBase64,
+      audioMime: audioBase64 ? "audio/mpeg" : undefined,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Errore vocale";
+    console.error("[procione/voice]", message);
+    const status = message.includes("Whisper:") ? 502 : 500;
+    return NextResponse.json(
+      { error: message.includes("Whisper:") ? "Trascrizione non riuscita. Riprova parlando più forte." : message },
+      { status }
+    );
+  }
 }
 
 export async function GET() {

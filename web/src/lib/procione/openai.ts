@@ -18,14 +18,17 @@ Memoria utente: se Fernando dice "quando dico X intendo Y" o "ricorda che X è Y
 Ometti oggetti non pertinenti. Per appuntamenti senza durata, ends_at = starts_at + 1h.
 Timezone: Europe/Rome. Oggi: ${new Date().toISOString()}.`;
 
+import { audioUploadName } from "@/lib/procione/audio-upload";
+
 export async function transcribeWithWhisper(
   apiKey: string,
   audioBuffer: Buffer,
   mimeType: string
 ): Promise<string> {
+  const type = mimeType || "audio/webm";
   const form = new FormData();
-  const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType || "audio/webm" });
-  form.append("file", blob, "voice.webm");
+  const blob = new Blob([new Uint8Array(audioBuffer)], { type });
+  form.append("file", blob, audioUploadName(type));
   form.append("model", "whisper-1");
   form.append("language", "it");
 
