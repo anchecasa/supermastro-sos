@@ -82,6 +82,16 @@ import {
 } from "@/lib/procione/session";
 import { acquireDevicePosition } from "@/lib/sos/location";
 import { audioUploadName } from "@/lib/procione/audio-upload";
+import { ensureMicReady, getSharedMicStream } from "@/lib/procione/voice-permissions";
+import {
+  attachSilenceAutoStop,
+  getRecorderMimeType,
+  getSpeechRecognition,
+  preferRecorderCapture,
+  speechErrorMessage,
+  SILENCE_MS,
+  type SpeechRecognitionCtor,
+} from "@/lib/procione/voice-capture";
 
 
 
@@ -111,32 +121,6 @@ type UseProcioneVoiceOptions = {
 
 
 
-type SpeechRecognitionCtor = new () => {
-
-  lang: string;
-
-  continuous: boolean;
-
-  interimResults: boolean;
-
-  maxAlternatives: number;
-
-  onresult: ((ev: { results: { isFinal: boolean; length: number; [i: number]: { transcript: string } | undefined }[] }) => void) | null;
-
-  onerror: ((ev: { error: string }) => void) | null;
-
-  onend: (() => void) | null;
-
-  start: () => void;
-
-  stop: () => void;
-
-  abort: () => void;
-
-};
-
-
-
 type ManualSession = {
 
   parts: string[];
@@ -156,121 +140,6 @@ const MANUAL_CONFIRM_HINT = "Di' altro oppure «no» per memorizzare";
 
 const FOLLOW_UP_QUESTION = "Hai altro da aggiungere? Di' no per memorizzare.";
 
-const SILENCE_MS = 2800;
-
-/** Su mobile/Safari il SpeechRecognition del browser è inaffidabile: usiamo MediaRecorder + Whisper. */
-function preferRecorderCapture(): boolean {
-  if (typeof navigator === "undefined") return false;
-  if (/iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent)) return true;
-  const ua = navigator.userAgent;
-  if (/Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR/i.test(ua)) return true;
-  return !getSpeechRecognition();
-}
-
-function attachSilenceAutoStop(
-  stream: MediaStream,
-  onSilence: () => void,
-  silenceMs = SILENCE_MS,
-  minRecordMs = 700
-): () => void {
-  const audioCtx = new AudioContext();
-  const source = audioCtx.createMediaStreamSource(stream);
-  const analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 512;
-  source.connect(analyser);
-  const data = new Uint8Array(analyser.fftSize);
-  const startedAt = Date.now();
-  let silenceStart: number | null = null;
-  let raf = 0;
-  let done = false;
-
-  const cleanup = () => {
-    if (done) return;
-    done = true;
-    cancelAnimationFrame(raf);
-    source.disconnect();
-    void audioCtx.close();
-  };
-
-  const tick = () => {
-    if (done) return;
-    analyser.getByteTimeDomainData(data);
-    let sum = 0;
-    for (let i = 0; i < data.length; i++) {
-      const v = (data[i] - 128) / 128;
-      sum += v * v;
-    }
-    const rms = Math.sqrt(sum / data.length);
-    const loud = rms > 0.018;
-    const elapsed = Date.now() - startedAt;
-
-    if (loud) {
-      silenceStart = null;
-    } else if (elapsed >= minRecordMs) {
-      silenceStart ??= Date.now();
-      if (Date.now() - silenceStart >= silenceMs) {
-        cleanup();
-        onSilence();
-        return;
-      }
-    }
-    raf = requestAnimationFrame(tick);
-  };
-
-  raf = requestAnimationFrame(tick);
-  return cleanup;
-}
-
-function getSpeechRecognition(): SpeechRecognitionCtor | null {
-
-  if (typeof window === "undefined") return null;
-
-  const win = window as Window & {
-
-    SpeechRecognition?: SpeechRecognitionCtor;
-
-    webkitSpeechRecognition?: SpeechRecognitionCtor;
-
-  };
-
-  return win.SpeechRecognition ?? win.webkitSpeechRecognition ?? null;
-
-}
-
-
-
-function speechErrorMessage(code: string): string {
-
-  switch (code) {
-
-    case "not-allowed":
-
-    case "service-not-allowed":
-
-      return "Microfono bloccato. Clicca l'icona lucchetto nella barra indirizzi e consenti il microfono.";
-
-    case "no-speech":
-
-      return "Non ho sentito nulla. Riprova parlando più vicino al microfono.";
-
-    case "network":
-
-      return "Riconoscimento vocale offline non disponibile. Usa Chrome e connessione attiva.";
-
-    case "aborted":
-
-      return "Ascolto interrotto.";
-
-    default:
-
-      return `Errore microfono: ${code}`;
-
-  }
-
-}
-
-
-
 function playBase64Audio(base64: string, mime = "audio/mpeg") {
 
   const audio = new Audio(`data:${mime};base64,${base64}`);
@@ -278,22 +147,6 @@ function playBase64Audio(base64: string, mime = "audio/mpeg") {
   audio.playbackRate = 1.15;
 
   void audio.play();
-
-}
-
-
-
-function getRecorderMimeType(): string | undefined {
-
-  if (typeof MediaRecorder === "undefined") return undefined;
-
-  for (const type of ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"]) {
-
-    if (MediaRecorder.isTypeSupported(type)) return type;
-
-  }
-
-  return undefined;
 
 }
 
@@ -313,11 +166,7 @@ type ManualHandle =
 
 
 async function ensureMicrophoneAccess(): Promise<void> {
-
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-  stream.getTracks().forEach((t) => t.stop());
-
+  await ensureMicReady();
 }
 
 
@@ -825,7 +674,7 @@ export function useProcioneVoice({
 
       try {
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = getSharedMicStream() ?? (await navigator.mediaDevices.getUserMedia({ audio: true }));
 
         const mimeType = getRecorderMimeType();
 
@@ -1002,7 +851,7 @@ export function useProcioneVoice({
 
       abortRecognition();
 
-      const text = collected.trim();
+      const text = (collected || interim).trim();
 
       stopManualRecognition();
 
@@ -1389,6 +1238,7 @@ export function useProcioneVoice({
       }
 
       if (preferRecorderCapture()) {
+        wakeRef.current?.pause?.();
         wakeLockRef.current = false;
         void startManualListeningRef.current();
         return;

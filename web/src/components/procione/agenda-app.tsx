@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   CalendarDays,
@@ -49,6 +49,13 @@ import { useProcioneScreenWakeLock } from "@/components/procione/use-procione-wa
 import { cn } from "@/lib/utils";
 import { TaskListSection } from "@/components/procione/task-list-section";
 import { TaskDetailSheet } from "@/components/procione/task-detail-sheet";
+import { VoiceUndoBanner } from "@/components/procione/voice-undo-banner";
+import {
+  buildVoiceUndoState,
+  isVoiceUndoCommand,
+  isVoiceUndoExpired,
+  type VoiceUndoState,
+} from "@/lib/procione/voice-undo";
 
 const PROCIONE_AVATAR = "/images/supermastro-mezzobusto.png";
 const ORANGE = "#F27131";
@@ -104,6 +111,9 @@ export function AgendaApp({
   const [dataMode, setDataMode] = useState<ProcioneDataMode>(() => loadProcioneSession().dataMode);
   const [conciergeResult, setConciergeResult] = useState<ConciergeSearchResult | null>(null);
   const [rubricaVoiceTrigger, setRubricaVoiceTrigger] = useState<RubricaVoiceTrigger | null>(null);
+  const [voiceUndo, setVoiceUndo] = useState<VoiceUndoState | null>(null);
+  const [, setUndoTick] = useState(0);
+  const voiceUndoRef = useRef<VoiceUndoState | null>(null);
 
   const sortedAppointments = useMemo(
     () =>
@@ -292,7 +302,7 @@ export function AgendaApp({
 
     if (result.draft && result.awaitingConfirm) {
       setPendingDraft(result.draft);
-      showToast("Conferma con ok o pulsante");
+      showToast("Errore salvataggio — conferma manualmente");
       setProcioneMood("active");
       return;
     }
@@ -397,21 +407,119 @@ export function AgendaApp({
 
   function handleSaveConciergePlace(place: ConciergePlaceResult, _index: number) {
     if (!conciergeResult || conciergeResult.kind === "train") return;
-    setPendingDraft({
-      kind: "place_favorite",
-      placeFavorite: {
-        kind: conciergeResult.kind,
-        name: place.name,
-        address: place.address,
-        city: conciergeResult.destination,
-        mapsUrl: place.mapsUrl,
-        placeId: place.placeId,
-        rating: place.rating,
+    void autoSaveVoiceDraft({
+      transcript: "Salva preferito",
+      reply: "",
+      draft: {
+        kind: "place_favorite",
+        placeFavorite: {
+          kind: conciergeResult.kind,
+          name: place.name,
+          address: place.address,
+          city: conciergeResult.destination,
+          mapsUrl: place.mapsUrl,
+          placeId: place.placeId,
+          rating: place.rating,
+        },
+        summary: `Memorizzo ${conciergeResult.kind === "hotel" ? "l'albergo" : "il ristorante"} «${place.name}» a ${conciergeResult.destination}.`,
       },
-      summary: `Memorizzo ${conciergeResult.kind === "hotel" ? "l'albergo" : "il ristorante"} «${place.name}» a ${conciergeResult.destination}. Confermi? Di' ok.`,
     });
-    showToast("Conferma con ok o pulsante");
+  }
+
+  async function performVoiceUndo() {
+    const undo = voiceUndoRef.current;
+    if (!undo || isVoiceUndoExpired(undo)) {
+      voiceUndoRef.current = null;
+      setVoiceUndo(null);
+      return;
+    }
+    try {
+      for (const id of undo.appointmentIds) {
+        await deleteAppointment(id);
+        setAppointments((prev) => prev.filter((a) => a.id !== id));
+      }
+      for (const id of undo.contactIds) {
+        await deleteContact(id);
+        setContacts((prev) => prev.filter((c) => c.id !== id));
+      }
+      for (const id of undo.taskIds) {
+        await deleteTask(id);
+        removeTaskFromList(id);
+      }
+      showToast("Salvataggio annullato");
+      setProcioneMood("idle");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Annullamento fallito");
+    } finally {
+      voiceUndoRef.current = null;
+      setVoiceUndo(null);
+    }
+  }
+
+  function scheduleVoiceUndo(
+    data: {
+      type?: string;
+      reply?: string;
+      appointment?: { id?: string };
+      appointments?: { id?: string }[];
+      contact?: { id?: string };
+      contacts?: { id?: string }[];
+      task?: { id?: string };
+      tasks?: { id?: string }[];
+    },
+    draft?: ProcioneDraft
+  ) {
+    const undo = buildVoiceUndoState(data, draft);
+    if (!undo) return;
+    voiceUndoRef.current = undo;
+    setVoiceUndo(undo);
+  }
+
+  /** Opzione C: salva subito la bozza vocale, poi banner annulla 5s. */
+  async function autoSaveVoiceDraft(result: {
+    transcript: string;
+    reply: string;
+    draft: ProcioneDraft;
+  }) {
+    setDraftSaving(true);
     setProcioneMood("active");
+    try {
+      const res = await fetch("/api/procione/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft: result.draft }),
+      });
+      const data = (await res.json()) as Parameters<typeof applyVoiceResult>[0] & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Salvataggio fallito");
+
+      setPendingDraft(null);
+      await applyVoiceResult({
+        transcript: result.transcript,
+        reply: data.reply ?? result.reply,
+        type: data.type ?? "appointment",
+        appointment: data.appointment,
+        appointments: data.appointments,
+        contact: data.contact,
+        contacts: data.contacts,
+        task: data.task,
+        tasks: data.tasks,
+      });
+
+      scheduleVoiceUndo(
+        data as Parameters<typeof scheduleVoiceUndo>[0],
+        result.draft
+      );
+      showToast("Salvato — annulla entro 5 secondi se non va bene");
+      if (data.reply) void procioneSpeak.speak(data.reply.slice(0, 220));
+      setProcioneMood("success");
+      window.setTimeout(() => setProcioneMood("idle"), 2000);
+    } catch (err) {
+      setPendingDraft(result.draft);
+      showToast(err instanceof Error ? err.message : "Errore salvataggio");
+      setProcioneMood("idle");
+    } finally {
+      setDraftSaving(false);
+    }
   }
 
   async function confirmPendingDraft() {
@@ -437,6 +545,10 @@ export function AgendaApp({
         task: data.task,
         tasks: data.tasks,
       });
+      scheduleVoiceUndo(
+        data as Parameters<typeof scheduleVoiceUndo>[0],
+        pendingDraft ?? undefined
+      );
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Errore salvataggio");
     } finally {
@@ -460,10 +572,22 @@ export function AgendaApp({
       showToast(msg);
     },
     onResult: (result) => {
+      if (voiceUndoRef.current && isVoiceUndoCommand(result.transcript)) {
+        void performVoiceUndo();
+        return;
+      }
+
+      if (result.draft && result.awaitingConfirm) {
+        void autoSaveVoiceDraft({
+          transcript: result.transcript,
+          reply: result.reply,
+          draft: result.draft,
+        });
+        return;
+      }
+
       void applyVoiceResult(result);
-      if (result.reply && (result.type === "draft" || result.awaitingConfirm)) {
-        void procioneSpeak.speak(result.reply);
-      } else if (result.reply && result.type !== "unknown") {
+      if (result.reply && result.type !== "unknown" && result.type !== "draft") {
         void procioneSpeak.speak(result.reply.slice(0, 220));
       }
     },
@@ -479,6 +603,20 @@ export function AgendaApp({
     window.addEventListener("pointerdown", unlockWake, { once: true, passive: true });
     return () => window.removeEventListener("pointerdown", unlockWake);
   }, [voice.wakeEnabled, voice.enableWakeWord]);
+
+  useEffect(() => {
+    if (!voiceUndo) return;
+    const timer = window.setInterval(() => {
+      const current = voiceUndoRef.current;
+      if (!current || isVoiceUndoExpired(current)) {
+        voiceUndoRef.current = null;
+        setVoiceUndo(null);
+        return;
+      }
+      setUndoTick((n) => n + 1);
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [voiceUndo]);
 
   useEffect(() => {
     sessionStorage.setItem(PROCIONE_TAB_KEY, tab);
@@ -925,6 +1063,10 @@ export function AgendaApp({
         </div>
       )}
 
+      {voiceUndo && !selected && !selectedTask && (
+        <VoiceUndoBanner undo={voiceUndo} onUndo={() => void performVoiceUndo()} />
+      )}
+
       {pendingDraft && !selected && (
         <ProcioneDraftCard
           draft={pendingDraft}
@@ -1047,8 +1189,8 @@ export function AgendaApp({
               : listening || voice.processing
                 ? "Ascolto… parla ora"
                 : voice.wakeEnabled
-                  ? "Di' «we we» oppure clicca il microfono"
-                  : "Consenti microfono · ascolto vocale sempre attivo")}
+                  ? "Di' «we we» — salvataggio immediato, annulla entro 5 sec"
+                  : "Consenti microfono · tap sullo schermo per «we we»")}
         </p>
       </div>
     </div>
