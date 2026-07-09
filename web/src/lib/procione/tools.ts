@@ -76,6 +76,7 @@ export type IntentResult = {
   rubricaAction?: "open" | "add" | "search";
   rubricaSearch?: string;
   agendaAction?: "open";
+  agendaPeriod?: import("@/lib/procione/context").AgendaQueryPeriod;
   navigate?: { url: string; label: string };
   draft?: ProcioneDraft;
   awaitingConfirm?: boolean;
@@ -231,7 +232,7 @@ export async function executeVoiceCommand(
 
   const openAgenda = parseOpenAgendaCommand(transcript);
   if (openAgenda) {
-    return { reply: openAgenda.reply, type: "query", agendaAction: "open" };
+    return { reply: openAgenda.reply, type: "query", agendaAction: "open", agendaPeriod: openAgenda.period };
   }
 
   const taskDelete = parseTaskDeleteCommand(transcript);
@@ -312,7 +313,7 @@ export async function executeVoiceCommand(
   if (agendaPeriod) {
     const { buildAgendaQueryReply } = await import("@/lib/procione/context");
     const reply = await buildAgendaQueryReply(supabase, userId, agendaPeriod);
-    return { reply, type: "query", agendaAction: "open" };
+    return { reply, type: "query", agendaAction: "open", agendaPeriod };
   }
 
   const cancel = parseCancelCommand(transcript);

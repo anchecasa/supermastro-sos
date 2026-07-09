@@ -178,6 +178,7 @@ export async function POST(request: Request) {
       rubricaAction: result.rubricaAction,
       rubricaSearch: result.rubricaSearch,
       agendaAction: result.agendaAction,
+      agendaPeriod: result.agendaPeriod,
       navigate: result.navigate,
       draft: result.draft,
       awaitingConfirm: result.awaitingConfirm,

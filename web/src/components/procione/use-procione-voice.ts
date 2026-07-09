@@ -1,10 +1,10 @@
 "use client";
 
-
-
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { AgendaQueryPeriod } from "@/lib/procione/context";
 
+export type VoicePhase = "hidden" | "wake" | "listening" | "processing";
 
 type VoiceResult = {
 
@@ -31,6 +31,8 @@ type VoiceResult = {
   rubricaSearch?: string;
 
   agendaAction?: "open";
+
+  agendaPeriod?: AgendaQueryPeriod;
 
   navigate?: { url: string; label: string };
 
@@ -136,13 +138,19 @@ type ManualSession = {
 
 const WAKE_HINT = "Di' «we we» — si apre l'agenda Procione";
 
-function manualListenHint() {
+function postWakeListenHint() {
+  return "Ti ascolto…";
+}
+
+function manualListenHint(postWake = false) {
+  if (postWake) return postWakeListenHint();
   return shouldUseTapToStop()
     ? "Parla… tocca di nuovo il microfono per inviare"
     : "Parla… invio automatico quando smetti di parlare";
 }
 
-function manualRecordHint() {
+function manualRecordHint(postWake = false) {
+  if (postWake) return postWakeListenHint();
   return shouldUseTapToStop()
     ? "Registro… tocca di nuovo il microfono quando hai finito"
     : "Registro… invio automatico quando smetti di parlare";
@@ -469,6 +477,8 @@ export function useProcioneVoice({
 
   const [manualListening, setManualListening] = useState(false);
 
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>("hidden");
+
   const [statusHint, setStatusHint] = useState<string | null>(null);
 
   const wakeRef = useRef<{
@@ -500,6 +510,7 @@ export function useProcioneVoice({
   const handleWakeTriggeredRef = useRef<(text: string) => void>(() => {});
   const lastWakeTriggerRef = useRef(0);
   const lastMicToggleRef = useRef(0);
+  const postWakeCaptureRef = useRef(false);
 
   const pauseWake = useCallback(() => {
 
@@ -533,6 +544,10 @@ export function useProcioneVoice({
     }
     setManualListening(false);
     onListeningChange?.(false);
+    if (!busyRef.current) {
+      postWakeCaptureRef.current = false;
+      setVoicePhase("hidden");
+    }
   }, [onListeningChange]);
 
 
@@ -586,6 +601,8 @@ export function useProcioneVoice({
 
       setProcessing(true);
 
+      setVoicePhase("processing");
+
       setStatusHint("Elaboro…");
 
 
@@ -623,6 +640,10 @@ export function useProcioneVoice({
         busyRef.current = false;
 
         setProcessing(false);
+
+        postWakeCaptureRef.current = false;
+
+        setVoicePhase("hidden");
 
         resumeWake();
 
@@ -662,7 +683,11 @@ export function useProcioneVoice({
 
     onListeningChange?.(true);
 
-    setStatusHint(manualListenHint());
+    const postWake = postWakeCaptureRef.current;
+
+    setVoicePhase("listening");
+
+    setStatusHint(manualListenHint(postWake));
 
     const Ctor = preferRecorderCapture() ? null : getSpeechRecognition();
 
@@ -675,6 +700,10 @@ export function useProcioneVoice({
         setManualListening(false);
 
         onListeningChange?.(false);
+
+        postWakeCaptureRef.current = false;
+
+        setVoicePhase("hidden");
 
         resumeWake();
 
@@ -745,10 +774,11 @@ export function useProcioneVoice({
           },
         };
 
-        setStatusHint(manualRecordHint());
+        setStatusHint(manualRecordHint(postWake));
         startMediaRecorder(recorder);
 
-        if (!shouldUseTapToStop()) {
+        const forceAutoStop = postWake || !shouldUseTapToStop();
+        if (forceAutoStop) {
           silenceCleanup = attachSilenceAutoStop(stream, () => {
             if (manualRef.current?.mode === "recorder" && !finishingManualRef.current) {
               finishManualListeningRef.current();
@@ -762,6 +792,10 @@ export function useProcioneVoice({
         setManualListening(false);
 
         onListeningChange?.(false);
+
+        postWakeCaptureRef.current = false;
+
+        setVoicePhase("hidden");
 
         resumeWake();
 
@@ -1003,6 +1037,8 @@ export function useProcioneVoice({
 
       onListeningChange?.(false);
 
+      setVoicePhase("processing");
+
       setStatusHint("Elaboro…");
 
       void (async () => {
@@ -1041,7 +1077,11 @@ export function useProcioneVoice({
 
           setProcessing(false);
 
+          postWakeCaptureRef.current = false;
+
           finishingManualRef.current = false;
+
+          setVoicePhase("hidden");
 
           resumeWake();
 
@@ -1131,9 +1171,11 @@ export function useProcioneVoice({
 
       setProcessing(true);
 
+      setVoicePhase(knownTranscript ? "processing" : "listening");
+
       onListeningChange?.(true);
 
-      setStatusHint("Ascolto…");
+      setStatusHint(knownTranscript ? "Elaboro…" : "Ti ascolto…");
 
 
 
@@ -1156,6 +1198,8 @@ export function useProcioneVoice({
         } else {
 
           const captured = await transcribeCommand();
+
+          setVoicePhase("processing");
 
           setStatusHint("Elaboro…");
 
@@ -1195,7 +1239,11 @@ export function useProcioneVoice({
 
         setProcessing(false);
 
+        postWakeCaptureRef.current = false;
+
         onListeningChange?.(false);
+
+        setVoicePhase("hidden");
 
         resumeWake();
 
@@ -1220,6 +1268,7 @@ export function useProcioneVoice({
       lastWakeTriggerRef.current = now;
 
       wakeLockRef.current = true;
+      setVoicePhase("wake");
       void onWakeDetected(onWake);
 
       const inlineCommand = extractCommandAfterWake(heardText);
@@ -1230,6 +1279,7 @@ export function useProcioneVoice({
       }
 
       if (preferRecorderCapture()) {
+        postWakeCaptureRef.current = true;
         wakeRef.current?.pause?.();
         wakeLockRef.current = false;
         void startManualListeningRef.current();
@@ -1582,6 +1632,8 @@ export function useProcioneVoice({
     processing,
 
     manualListening,
+
+    voicePhase,
 
     statusHint,
 

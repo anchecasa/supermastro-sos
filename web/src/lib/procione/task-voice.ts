@@ -1,3 +1,4 @@
+import type { AgendaQueryPeriod } from "@/lib/procione/context";
 import type { CreateTaskInput } from "@/lib/procione/types";
 import { DATE_RE, TIME_RE } from "@/lib/procione/voice-parser";
 
@@ -74,17 +75,43 @@ function stripScheduling(text: string): string {
     .trim();
 }
 
-/** Apre la tab agenda Procione. */
-export function parseOpenAgendaCommand(transcript: string): { reply: string } | null {
+function agendaPeriodFromText(t: string): AgendaQueryPeriod | undefined {
+  if (/settimana|prossimi?\s+(?:7\s+)?giorni|questa settimana/.test(t)) return "week";
+  if (/dopodomani/.test(t)) return "day_after_tomorrow";
+  if (/\bdomani\b/.test(t) && !/\boggi\b/.test(t)) return "tomorrow";
+  if (/\boggi\b|stasera|questa giornata/.test(t)) return "today";
+  return undefined;
+}
+
+function openAgendaReply(period?: AgendaQueryPeriod): string {
+  switch (period) {
+    case "tomorrow":
+      return "Apro l'agenda di domani.";
+    case "day_after_tomorrow":
+      return "Apro l'agenda di dopodomani.";
+    case "today":
+      return "Apro l'agenda di oggi.";
+    case "week":
+      return "Apro l'agenda della settimana.";
+    default:
+      return "Apro l'agenda.";
+  }
+}
+
+/** Apre la tab agenda Procione (opz. con giorno: «apri agenda di domani»). */
+export function parseOpenAgendaCommand(
+  transcript: string
+): { reply: string; period?: AgendaQueryPeriod } | null {
   const t = transcript.toLowerCase();
-  if (
+  const opensAgenda =
     /apri(?:re)?\s+(?:l'?)?agenda|mostra(?:mi)?\s+(?:l'?)?agenda|vai\s+all'?agenda|apri\s+procione|mostra\s+i\s+promemoria/.test(
       t
-    )
-  ) {
-    return { reply: "Apro l'agenda." };
-  }
-  return null;
+    ) || /^agenda\s+(?:di\s+)?(?:domani|oggi|dopodomani|settimana)\b/.test(t.trim());
+
+  if (!opensAgenda) return null;
+
+  const period = agendaPeriodFromText(t);
+  return { reply: openAgendaReply(period), period };
 }
 
 export function parseTaskCommand(transcript: string, now = new Date()): CreateTaskInput | null {

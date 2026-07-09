@@ -50,6 +50,11 @@ import { cn } from "@/lib/utils";
 import { TaskListSection } from "@/components/procione/task-list-section";
 import { TaskDetailSheet } from "@/components/procione/task-detail-sheet";
 import { VoiceUndoBanner } from "@/components/procione/voice-undo-banner";
+import { ProcioneSiriOverlay } from "@/components/procione/procione-siri-overlay";
+import {
+  dateForAgendaPeriod,
+} from "@/components/procione/calendar/calendar-utils";
+import type { AgendaQueryPeriod } from "@/lib/procione/context";
 import {
   buildVoiceUndoState,
   isVoiceUndoCommand,
@@ -112,6 +117,7 @@ export function AgendaApp({
   const [conciergeResult, setConciergeResult] = useState<ConciergeSearchResult | null>(null);
   const [rubricaVoiceTrigger, setRubricaVoiceTrigger] = useState<RubricaVoiceTrigger | null>(null);
   const [voiceUndo, setVoiceUndo] = useState<VoiceUndoState | null>(null);
+  const [calendarFocusDate, setCalendarFocusDate] = useState<Date | null>(null);
   const [, setUndoTick] = useState(0);
   const voiceUndoRef = useRef<VoiceUndoState | null>(null);
 
@@ -235,6 +241,7 @@ export function AgendaApp({
     rubricaAction?: "open" | "add" | "search";
     rubricaSearch?: string;
     agendaAction?: "open";
+    agendaPeriod?: AgendaQueryPeriod;
     navigate?: { url: string; label: string };
     call?: { phone: string; name: string };
     whatsapp?: { phone: string; name: string; url: string };
@@ -298,6 +305,9 @@ export function AgendaApp({
 
     if (result.agendaAction === "open") {
       setTab("agenda");
+      if (result.agendaPeriod) {
+        setCalendarFocusDate(dateForAgendaPeriod(result.agendaPeriod));
+      }
     }
 
     if (result.draft && result.awaitingConfirm) {
@@ -562,7 +572,6 @@ export function AgendaApp({
     getPendingDraft: () => pendingDraft,
     onWake: () => {
       setProcioneMood("active");
-      showToast("Ti ascolto — parla pure");
     },
     onListeningChange: (isListening) => {
       setListening(isListening);
@@ -867,6 +876,7 @@ export function AgendaApp({
             <ProcioneCalendar
               appointments={sortedAppointments}
               onSelectAppointment={setSelected}
+              focusDate={calendarFocusDate}
             />
             <TaskListSection tasks={tasks} onSelect={setSelectedTask} />
           </section>
@@ -1049,12 +1059,16 @@ export function AgendaApp({
         )}
       </div>
 
-      {(procioneMood !== "idle" || procioneSpeak.speaking) && !selected && (
+      {(procioneMood !== "idle" || procioneSpeak.speaking) &&
+        voice.voicePhase === "hidden" &&
+        !voice.manualListening &&
+        !voice.processing &&
+        !selected && (
         <div className="pointer-events-none absolute inset-x-0 top-1/3 z-20 flex justify-center">
           <div
             className={cn(
               "relative h-28 w-28 overflow-hidden rounded-full border-4 bg-white shadow-2xl transition-transform",
-              (procioneMood === "active" || listening || voice.manualListening || voice.processing || procioneSpeak.speaking) &&
+              (procioneMood === "active" || listening || procioneSpeak.speaking) &&
                 "scale-110 animate-pulse",
               procioneMood === "success" && "scale-100"
             )}
@@ -1064,6 +1078,12 @@ export function AgendaApp({
           </div>
         </div>
       )}
+
+      <ProcioneSiriOverlay
+        phase={voice.voicePhase}
+        statusHint={voice.statusHint}
+        speaking={procioneSpeak.speaking}
+      />
 
       {voiceUndo && !selected && !selectedTask && (
         <VoiceUndoBanner undo={voiceUndo} onUndo={() => void performVoiceUndo()} />

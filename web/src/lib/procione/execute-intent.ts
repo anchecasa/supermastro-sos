@@ -280,7 +280,13 @@ export async function executeParsedCommand(
   const openAgenda = parseOpenAgendaCommand(transcript);
   if (openAgenda) {
     return withSession(
-      { reply: openAgenda.reply, type: "query", agendaAction: "open", sessionActive: true },
+      {
+        reply: openAgenda.reply,
+        type: "query",
+        agendaAction: "open",
+        agendaPeriod: openAgenda.period,
+        sessionActive: true,
+      },
       sessionPatch
     );
   }
@@ -317,10 +323,10 @@ export async function executeParsedCommand(
         ctx,
         personaOptions(dataMode)
       );
-      return withSession({ reply, type: "chat", agendaAction: "open", sessionActive: true }, sessionPatch);
+      return withSession({ reply, type: "chat", agendaAction: "open", agendaPeriod, sessionActive: true }, sessionPatch);
     }
     return withSession(
-      { reply: factual, type: "query", agendaAction: "open", sessionActive: true },
+      { reply: factual, type: "query", agendaAction: "open", agendaPeriod, sessionActive: true },
       sessionPatch
     );
   }

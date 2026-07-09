@@ -1,6 +1,14 @@
+import type { AgendaQueryPeriod } from "@/lib/procione/context";
 import type { AssistantAppointment } from "@/lib/procione/types";
 
 export type CalendarViewMode = "day" | "week" | "month";
+
+export function dateForAgendaPeriod(period: AgendaQueryPeriod, base = new Date()): Date {
+  const d = startOfDay(base);
+  if (period === "tomorrow") return addDays(d, 1);
+  if (period === "day_after_tomorrow") return addDays(d, 2);
+  return d;
+}
 
 export function startOfDay(d: Date) {
   const x = new Date(d);

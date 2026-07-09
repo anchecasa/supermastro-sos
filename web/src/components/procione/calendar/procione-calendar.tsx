@@ -1,22 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AssistantAppointment } from "@/lib/procione/types";
 import { cn } from "@/lib/utils";
 import { DayView } from "./day-view";
 import { WeekView } from "./week-view";
 import { MonthView } from "./month-view";
-import { addDays, CalendarViewMode, formatDayHeader, startOfDay } from "./calendar-utils";
+import {
+  addDays,
+  CalendarViewMode,
+  formatDayHeader,
+  startOfDay,
+} from "./calendar-utils";
 
 type ProcioneCalendarProps = {
   appointments: AssistantAppointment[];
   onSelectAppointment: (a: AssistantAppointment) => void;
+  focusDate?: Date | null;
 };
 
-export function ProcioneCalendar({ appointments, onSelectAppointment }: ProcioneCalendarProps) {
+export function ProcioneCalendar({ appointments, onSelectAppointment, focusDate }: ProcioneCalendarProps) {
   const [view, setView] = useState<CalendarViewMode>("day");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
+
+  useEffect(() => {
+    if (!focusDate) return;
+    setCursor(startOfDay(focusDate));
+    setView("day");
+  }, [focusDate]);
 
   function shift(n: number) {
     if (view === "day") setCursor((c) => addDays(c, n));
