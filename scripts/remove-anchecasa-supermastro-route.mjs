@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Rimuove route Worker anchecasa.it/supermastro* così Cloudflare Pages
- * gestisce il path via middleware (URL canonico anchecasa.it/supermastro).
+ * Rimuove route Worker su anchecasa.it/supermastro* e /artigiano* così Cloudflare Pages
+ * gestisce i path via middleware (URL canonici anchecasa.it/...).
  */
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 import { loadDeployConfig } from "./deploy-config.mjs";
 
 const ZONE_NAME = "anchecasa.it";
-const REMOVE_PATTERNS = ["anchecasa.it/supermastro*"];
+const REMOVE_PATTERNS = ["anchecasa.it/supermastro*", "anchecasa.it/artigiano*"];
 
 function readToken() {
   if (process.env.CLOUDFLARE_API_TOKEN?.trim()) return process.env.CLOUDFLARE_API_TOKEN.trim();
@@ -43,7 +43,7 @@ async function main() {
   const toRemove = (existing.result ?? []).filter((r) => REMOVE_PATTERNS.includes(r.pattern));
 
   if (!toRemove.length) {
-    console.log("OK — nessuna route anchecasa.it/supermastro* sul Worker (già gestita da Pages)");
+    console.log("OK — nessuna route supermastro/artigiano sul Worker (già gestite da Pages)");
     return;
   }
 
@@ -52,7 +52,7 @@ async function main() {
     console.log(`   rimossa: ${route.pattern} → ${route.script}`);
   }
 
-  console.log("\nOK — anchecasa.it/supermastro passa a Cloudflare Pages + middleware");
+  console.log("\nOK — anchecasa.it/supermastro e /artigiano passano a Cloudflare Pages + middleware");
 }
 
 main().catch((e) => {

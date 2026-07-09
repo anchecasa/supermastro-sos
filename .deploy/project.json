@@ -13,7 +13,6 @@
     "workersDevUrl": "https://supermastro-sos.palumbofernando12.workers.dev",
     "productionRoutes": [
       "anchecasa.it/sos*",
-      "anchecasa.it/artigiano*",
       "anchecasa.it/admin*",
       "anchecasa.it/agenda*"
     ]
