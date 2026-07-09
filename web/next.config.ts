@@ -3,6 +3,12 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: [
+    "stripe",
+    "web-push",
+    "@picovoice/porcupine-web",
+    "@picovoice/web-voice-processor",
+  ],
   experimental: {
     optimizePackageImports: [
       "lucide-react",

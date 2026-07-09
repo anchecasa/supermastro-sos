@@ -64,11 +64,11 @@ if (!cfEnv.CLOUDFLARE_API_TOKEN) {
 console.log("→ Pulizia .open-next...");
 if (existsSync(OPEN_NEXT)) rmSync(OPEN_NEXT, { recursive: true, force: true });
 
-console.log("→ Build OpenNext...");
-run("npx", ["opennextjs-cloudflare", "build"], cfEnv);
+console.log("→ Build OpenNext (webpack, come CI)...");
+run("npx", ["opennextjs-cloudflare", "build"], { ...cfEnv, CI: "true" });
 
 console.log("→ Deploy Worker...");
-run("npx", ["opennextjs-cloudflare", "deploy"], cfEnv);
+run("npx", ["opennextjs-cloudflare", "deploy", "--", "--minify"], cfEnv);
 
 console.log("→ Upload secret runtime...");
 const upload = spawnSync("node", ["scripts/upload-worker-secrets.mjs"], {
