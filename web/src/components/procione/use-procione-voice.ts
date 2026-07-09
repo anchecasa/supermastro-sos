@@ -149,6 +149,7 @@ type ManualSession = {
 const WAKE_HINT = "Di' «we we» — si apre l'agenda Procione";
 
 const MANUAL_LISTEN_HINT = "Parla… clicca di nuovo il microfono quando hai finito";
+const MANUAL_RECORD_HINT = "Registro… clicca di nuovo il microfono per inviare";
 
 const MANUAL_CONFIRM_HINT = "Di' altro oppure «no» per memorizzare";
 
@@ -233,6 +234,19 @@ function getRecorderMimeType(): string | undefined {
   return undefined;
 
 }
+
+async function isWhisperAvailable(): Promise<boolean> {
+  try {
+    const cfg = (await fetch("/api/procione/voice").then((r) => r.json())) as { whisper?: boolean };
+    return Boolean(cfg.whisper);
+  } catch {
+    return false;
+  }
+}
+
+type ManualHandle =
+  | { mode: "speech"; getText: () => string; abort: () => void }
+  | { mode: "recorder"; finish: () => Promise<Blob>; abort: () => void };
 
 
 
@@ -551,15 +565,7 @@ export function useProcioneVoice({
 
   const wakeLockRef = useRef(false);
 
-  const manualRef = useRef<{
-
-    recognition: InstanceType<SpeechRecognitionCtor>;
-
-    getText: () => string;
-
-    abort: () => void;
-
-  } | null>(null);
+  const manualRef = useRef<ManualHandle | null>(null);
 
   const manualSessionRef = useRef<ManualSession>({ parts: [], phase: "idle" });
 
@@ -714,23 +720,21 @@ export function useProcioneVoice({
 
 
 
-  const startManualListening = useCallback(() => {
+  const startManualListening = useCallback(async () => {
 
-    const Ctor = getSpeechRecognition();
+    if (manualRef.current) return;
 
-    if (!Ctor) {
+    try {
 
-      onError("Usa Chrome o Edge su PC per i comandi vocali.");
+      await ensureMicrophoneAccess();
+
+    } catch {
+
+      onError("Consenti l'accesso al microfono nelle impostazioni del browser.");
 
       return;
 
     }
-
-
-
-    if (manualRef.current) return;
-
-
 
     pauseWake();
 
@@ -740,7 +744,131 @@ export function useProcioneVoice({
 
     setStatusHint(MANUAL_LISTEN_HINT);
 
+    const Ctor = getSpeechRecognition();
 
+    if (!Ctor) {
+
+      const whisper = await isWhisperAvailable();
+
+      if (!whisper) {
+
+        setManualListening(false);
+
+        onListeningChange?.(false);
+
+        resumeWake();
+
+        onError("Riconoscimento vocale non disponibile su questo browser. Usa Chrome o Edge.");
+
+        return;
+
+      }
+
+      try {
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        const mimeType = getRecorderMimeType();
+
+        const recorder = mimeType
+
+          ? new MediaRecorder(stream, { mimeType })
+
+          : new MediaRecorder(stream);
+
+        const chunks: Blob[] = [];
+
+        recorder.ondataavailable = (e) => {
+
+          if (e.data.size) chunks.push(e.data);
+
+        };
+
+        let stopResolve!: (blob: Blob) => void;
+
+        let stopReject!: (err: Error) => void;
+
+        const blobPromise = new Promise<Blob>((resolve, reject) => {
+
+          stopResolve = resolve;
+
+          stopReject = reject;
+
+        });
+
+        recorder.onstop = () => {
+
+          stream.getTracks().forEach((t) => t.stop());
+
+          if (!chunks.length) {
+
+            stopReject(new Error("Nessun audio registrato."));
+
+            return;
+
+          }
+
+          stopResolve(new Blob(chunks, { type: mimeType ?? chunks[0]?.type ?? "audio/webm" }));
+
+        };
+
+        recorder.onerror = () => {
+
+          stream.getTracks().forEach((t) => t.stop());
+
+          stopReject(new Error("Registrazione fallita."));
+
+        };
+
+        let finished = false;
+
+        manualRef.current = {
+
+          mode: "recorder",
+
+          finish: () => {
+
+            if (finished) return blobPromise;
+
+            finished = true;
+
+            if (recorder.state !== "inactive") recorder.stop();
+
+            return blobPromise;
+
+          },
+
+          abort: () => {
+
+            finished = true;
+
+            if (recorder.state !== "inactive") recorder.stop();
+
+            else stream.getTracks().forEach((t) => t.stop());
+
+          },
+
+        };
+
+        setStatusHint(MANUAL_RECORD_HINT);
+
+        recorder.start(250);
+
+      } catch {
+
+        setManualListening(false);
+
+        onListeningChange?.(false);
+
+        resumeWake();
+
+        onError("Impossibile avviare il microfono. Riprova tra un attimo.");
+
+      }
+
+      return;
+
+    }
 
     const recognition = new Ctor();
 
@@ -798,7 +926,7 @@ export function useProcioneVoice({
 
     manualRef.current = {
 
-      recognition,
+      mode: "speech",
 
       getText: () => collected,
 
@@ -958,6 +1086,66 @@ export function useProcioneVoice({
 
     if (!handle) return;
 
+    if (handle.mode === "recorder") {
+
+      finishingManualRef.current = true;
+
+      manualRef.current = null;
+
+      setManualListening(false);
+
+      onListeningChange?.(false);
+
+      setStatusHint("Elaboro…");
+
+      void (async () => {
+
+        try {
+
+          const blob = await handle.finish();
+
+          busyRef.current = true;
+
+          pauseWake();
+
+          setProcessing(true);
+
+          const result = await sendVoiceToApi(blob, undefined, buildApiContext());
+
+          if (result.audioBase64) {
+
+            playBase64Audio(result.audioBase64, result.audioMime);
+
+          }
+
+          deliverResult(result);
+
+          setStatusHint(null);
+
+        } catch (err) {
+
+          setStatusHint(null);
+
+          onError(err instanceof Error ? err.message : "Errore vocale");
+
+        } finally {
+
+          busyRef.current = false;
+
+          setProcessing(false);
+
+          finishingManualRef.current = false;
+
+          resumeWake();
+
+        }
+
+      })();
+
+      return;
+
+    }
+
     const text = handle.getText().trim();
 
     finishingManualRef.current = true;
@@ -978,7 +1166,25 @@ export function useProcioneVoice({
 
     })();
 
-  }, [handleManualUtterance, stopManualRecognition]);
+  }, [
+
+    buildApiContext,
+
+    deliverResult,
+
+    handleManualUtterance,
+
+    onError,
+
+    onListeningChange,
+
+    pauseWake,
+
+    resumeWake,
+
+    stopManualRecognition,
+
+  ]);
 
 
 
@@ -992,15 +1198,21 @@ export function useProcioneVoice({
 
     }
 
-    if (busyRef.current || processing) return;
+    if (busyRef.current || processing) {
+
+      onError("Aspetta che Procione finisca di rispondere.");
+
+      return;
+
+    }
 
 
 
     manualSessionRef.current = { parts: [], phase: "idle" };
 
-    startManualListening();
+    void startManualListening();
 
-  }, [busyRef, finishManualListening, manualListening, processing, startManualListening]);
+  }, [busyRef, finishManualListening, manualListening, onError, processing, startManualListening]);
 
 
 
@@ -1107,8 +1319,6 @@ export function useProcioneVoice({
     const Ctor = getSpeechRecognition();
 
     if (!Ctor) {
-
-      onError("Wake word richiede Chrome o Edge su PC.");
 
       return null;
 
@@ -1384,7 +1594,13 @@ export function useProcioneVoice({
 
     const handle = startPhraseWakeWord();
 
-    if (!handle) return;
+    if (!handle) {
+
+      setStatusHint("Clicca il microfono per parlare con Procione");
+
+      return;
+
+    }
 
     wakeRef.current = handle;
 
