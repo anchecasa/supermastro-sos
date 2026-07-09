@@ -43,6 +43,10 @@ export function SiteHeader({
       : product === "lavoro"
         ? "SOS casa"
         : "Problema in casa?";
+  const hideSecondaryLink =
+    Boolean(ctaHref && ctaLabel) &&
+    ctaHref === secondaryHref &&
+    ctaLabel === secondaryLabel;
 
   return (
     <header
@@ -79,12 +83,14 @@ export function SiteHeader({
         </Link>
 
         <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
-          <Link
-            href={secondaryHref}
-            className="hidden text-xs font-medium text-muted transition-colors hover:text-foreground sm:inline"
-          >
-            {secondaryLabel}
-          </Link>
+          {!hideSecondaryLink && (
+            <Link
+              href={secondaryHref}
+              className="hidden text-xs font-medium text-muted transition-colors hover:text-foreground sm:inline"
+            >
+              {secondaryLabel}
+            </Link>
+          )}
           {ctaHref && ctaLabel && (
             <Link
               href={ctaHref}
