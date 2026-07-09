@@ -446,7 +446,10 @@ export function AgendaApp({
 
   const voice = useProcioneVoice({
     getPendingDraft: () => pendingDraft,
-    onWake: () => setProcioneMood("active"),
+    onWake: () => {
+      setProcioneMood("active");
+      showToast("Ti ascolto — parla pure");
+    },
     onListeningChange: (isListening) => {
       setListening(isListening);
       if (isListening) setProcioneMood("active");
@@ -467,6 +470,15 @@ export function AgendaApp({
   });
 
   useProcioneScreenWakeLock(voice.wakeEnabled);
+
+  useEffect(() => {
+    if (voice.wakeEnabled) return;
+    const unlockWake = () => {
+      void voice.enableWakeWord();
+    };
+    window.addEventListener("pointerdown", unlockWake, { once: true, passive: true });
+    return () => window.removeEventListener("pointerdown", unlockWake);
+  }, [voice.wakeEnabled, voice.enableWakeWord]);
 
   useEffect(() => {
     sessionStorage.setItem(PROCIONE_TAB_KEY, tab);

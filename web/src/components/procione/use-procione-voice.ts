@@ -640,6 +640,8 @@ export function useProcioneVoice({
   const handleManualUtteranceRef = useRef<(text: string) => Promise<void>>(async () => {});
   const startManualListeningRef = useRef<() => void>(() => {});
   const finishManualListeningRef = useRef<() => void>(() => {});
+  const handleWakeTriggeredRef = useRef<(text: string) => void>(() => {});
+  const lastWakeTriggerRef = useRef(0);
   const lastMicToggleRef = useRef(0);
 
   const pauseWake = useCallback(() => {
@@ -1367,12 +1369,37 @@ export function useProcioneVoice({
 
 
   const startManualVoice = useCallback(async () => {
-
     toggleManualVoice();
-
   }, [toggleManualVoice]);
 
+  const handleWakeTriggered = useCallback(
+    (heardText: string) => {
+      const now = Date.now();
+      if (now - lastWakeTriggerRef.current < 1800) return;
+      lastWakeTriggerRef.current = now;
 
+      wakeLockRef.current = true;
+      void onWakeDetected(onWake);
+
+      const inlineCommand = extractCommandAfterWake(heardText);
+
+      if (inlineCommand) {
+        void runPipeline(inlineCommand);
+        return;
+      }
+
+      if (preferRecorderCapture()) {
+        wakeLockRef.current = false;
+        void startManualListeningRef.current();
+        return;
+      }
+
+      void runPipeline();
+    },
+    [onWake, runPipeline]
+  );
+
+  handleWakeTriggeredRef.current = handleWakeTriggered;
 
   const startPhraseWakeWord = useCallback(() => {
 
@@ -1427,45 +1454,22 @@ export function useProcioneVoice({
 
 
     recognition.onresult = (event) => {
-
       if (busyRef.current || wakeLockRef.current || manualRef.current) return;
 
-
-
       for (let i = event.results.length - 1; i >= 0; i--) {
-
         const text = event.results[i]?.[0]?.transcript ?? "";
-
         if (!containsWakePhrase(text)) continue;
 
-        if (!event.results[i]?.isFinal) continue;
-
-
-
-        wakeLockRef.current = true;
-
-        void onWakeDetected(onWake);
+        handleWakeTriggeredRef.current(text);
 
         try {
-
           recognition.stop();
-
         } catch {
-
           /* ignore */
-
         }
 
-
-
-        const inlineCommand = extractCommandAfterWake(text);
-
-        void runPipeline(inlineCommand || undefined);
-
         break;
-
       }
-
     };
 
 
@@ -1540,7 +1544,7 @@ export function useProcioneVoice({
 
     };
 
-  }, [onError, onWake, runPipeline]);
+  }, [onError]);
 
 
 
@@ -1591,11 +1595,7 @@ export function useProcioneVoice({
           [{ publicPath: keywordPath, label: "Ehi Procione" }],
 
           () => {
-
-            void onWakeDetected(onWake);
-
-            void runPipeline();
-
+            handleWakeTriggeredRef.current("we we");
           },
 
           { publicPath: modelPath }
@@ -1668,7 +1668,7 @@ export function useProcioneVoice({
 
     setStatusHint(WAKE_HINT);
 
-  }, [onError, onWake, runPipeline, startPhraseWakeWord]);
+  }, [onError, onWake, startPhraseWakeWord]);
 
 
 
@@ -1687,13 +1687,9 @@ export function useProcioneVoice({
 
 
   useEffect(() => {
-
-    if (!autoWake || preferRecorderCapture()) return;
-
+    if (!autoWake) return;
     void enableWakeWord();
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
-
   }, [autoWake]);
 
 

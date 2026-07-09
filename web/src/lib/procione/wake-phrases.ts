@@ -42,7 +42,10 @@ const WAKE_ALONE = [
   /\bhey+\b/,
   /\bwe+\s+we+\b/,
   /\bwi+\s+wi+\b/,
-  /\bui+\s+ui+\b/,
+  /^ue+\s+ue+\b/,
+  /^vi+\s+vi+\b/,
+  /\bue+\s+ue+\b/,
+  /\bvi+\s+vi+\b/,
 ];
 
 export function containsWakePhrase(text: string): boolean {
@@ -60,7 +63,7 @@ export function extractCommandAfterWake(text: string): string {
       /^.*?(ehi+|hey+|ei+|eh+|ok+|we+\s+we+|wi+\s+wi+|ui+\s+ui+|eh+\s+eh+|ei+\s+ei+|we+|wi+|ui+|o+)\s*procion[e]?\s*[,:\s]*/i,
       ""
     )
-    .replace(/^.*?\b(ehi+|hey+|ei+|eh+|we+\s+we+|wi+\s+wi+|ui+\s+ui+|eh+\s+eh+|ei+\s+ei+)\b\s*[,:\s]*/i, "")
+    .replace(/^.*?\b(ehi+|hey+|ei+|eh+|we+\s+we+|wi+\s+wi+|ui+\s+ui+|ue+\s+ue+|vi+\s+vi+|eh+\s+eh+|ei+\s+ei+)\b\s*[,:\s]*/i, "")
     .replace(/^procion[e]?\s*[,:\s]*/i, "")
     .trim();
 }
