@@ -53,12 +53,14 @@ function putSecret(name, value, wranglerEnv) {
 
 async function main() {
   const env = loadEnv(resolve(WEB, ".env.local"));
+  const apiToken = env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || "";
   const wranglerEnv = {
-    CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN || "",
     CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || "",
   };
-  if (!wranglerEnv.CLOUDFLARE_API_TOKEN) {
-    throw new Error("CLOUDFLARE_API_TOKEN mancante in web/.env.local");
+  if (apiToken) {
+    wranglerEnv.CLOUDFLARE_API_TOKEN = apiToken;
+  } else {
+    console.log("   (sessione wrangler OAuth — CLOUDFLARE_API_TOKEN non impostato)");
   }
   console.log(`→ Secret Worker ${WORKER}...`);
   for (const key of SECRETS) {
