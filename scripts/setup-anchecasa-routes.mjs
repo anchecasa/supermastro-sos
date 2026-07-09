@@ -12,6 +12,9 @@ const ROUTES = [
   "anchecasa.it/sos*",
   "anchecasa.it/admin*",
   "anchecasa.it/agenda*",
+  "anchecasa.it/_next*",
+  "anchecasa.it/images*",
+  "anchecasa.it/api*",
 ];
 
 function readOAuthToken() {
