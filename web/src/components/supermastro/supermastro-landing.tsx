@@ -294,7 +294,7 @@ export function SuperMastroLanding({
 
         items={[
 
-          { value: "Italia", label: "iscrizione nationwide" },
+          { value: "Italia", label: "iscrizione nazionale" },
 
           { value: "Verificati", label: "profili talent pool" },
 
