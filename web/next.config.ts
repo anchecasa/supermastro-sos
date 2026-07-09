@@ -4,9 +4,13 @@ import { fileURLToPath } from "node:url";
 
 const nextConfig: NextConfig = {
   experimental: {
-    optimizePackageImports: ["lucide-react", "framer-motion"],
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "@radix-ui/react-label",
+      "@radix-ui/react-slot",
+    ],
   },
-  serverExternalPackages: ["pg"],
   turbopack: {
     root: dirname(fileURLToPath(import.meta.url)),
   },

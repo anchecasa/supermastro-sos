@@ -36,15 +36,19 @@ function wranglerEnv(env) {
   return out;
 }
 
-function run(cmd, args, env = {}) {
-  const childEnv = { ...process.env, ...env };
-  if (!env.CLOUDFLARE_API_TOKEN) {
+function spawnEnv(extra = {}) {
+  const childEnv = { ...process.env, ...extra };
+  if (!extra.CLOUDFLARE_API_TOKEN) {
     delete childEnv.CLOUDFLARE_API_TOKEN;
   }
+  return childEnv;
+}
+
+function run(cmd, args, env = {}) {
   const res = spawnSync(cmd, args, {
     cwd: WEB,
     stdio: "inherit",
-    env: childEnv,
+    env: spawnEnv(env),
     shell: process.platform === "win32",
   });
   if (res.status !== 0) process.exit(res.status ?? 1);
@@ -70,7 +74,7 @@ console.log("→ Upload secret runtime...");
 const upload = spawnSync("node", ["scripts/upload-worker-secrets.mjs"], {
   cwd: ROOT,
   stdio: "inherit",
-  env: { ...process.env, ...cfEnv },
+  env: spawnEnv(cfEnv),
 });
 if (upload.status !== 0) process.exit(upload.status ?? 1);
 
