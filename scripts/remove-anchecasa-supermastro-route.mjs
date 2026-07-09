@@ -9,7 +9,12 @@ import { resolve } from "node:path";
 import { loadDeployConfig } from "./deploy-config.mjs";
 
 const ZONE_NAME = "anchecasa.it";
-const REMOVE_PATTERNS = ["anchecasa.it/supermastro*", "anchecasa.it/artigiano*"];
+const REMOVE_PATTERNS = [
+  "anchecasa.it/supermastro*",
+  "anchecasa.it/artigiano*",
+  "anchecasa.it/agenda*",
+  "anchecasa.it/admin*",
+];
 
 function readToken() {
   if (process.env.CLOUDFLARE_API_TOKEN?.trim()) return process.env.CLOUDFLARE_API_TOKEN.trim();
