@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
 import { redirect } from "next/navigation";
+import AdminInjobsLink from "@/components/admin/admin-injobs-link";
+import { INJOBS_ADMIN_LOGIN_URL } from "@/lib/injobsAdminUrl";
 
 const NAV = [
   { href: "/admin", label: "Panoramica" },
@@ -25,7 +27,7 @@ export default async function AdminLayout({
   } = await supabase.auth.getUser();
 
   if (!user || !isAdminEmail(user.email)) {
-    redirect("/supermastro");
+    redirect(INJOBS_ADMIN_LOGIN_URL);
   }
 
   return (
@@ -34,6 +36,7 @@ export default async function AdminLayout({
         <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <span className="shrink-0 font-semibold">Admin SuperMastro</span>
+            <AdminInjobsLink />
             <nav className="flex flex-wrap gap-x-3 gap-y-2 text-sm">
               {NAV.map((item) => (
                 <Link
