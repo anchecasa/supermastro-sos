@@ -50,12 +50,12 @@ export default async function AdminHomePage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold">Panoramica SuperMastro</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-slate-900">Panoramica SuperMastro</h1>
+          <p className="mt-1 text-sm text-slate-600">
             Controllo operativo per settore — talent, annunci e SOS
           </p>
         </div>
-        <Link href="/admin/monitor" className="text-sm text-sky-400 hover:text-sky-300">
+        <Link href="/admin/monitor" className="text-sm font-semibold text-orange-700 hover:text-orange-800">
           SOS live →
         </Link>
       </div>

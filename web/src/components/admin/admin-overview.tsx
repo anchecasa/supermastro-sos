@@ -6,9 +6,9 @@ import {
 } from "@/lib/admin-dashboard";
 
 const URGENCY_CLASS = {
-  ok: "border-emerald-800/60 bg-emerald-950/40 text-emerald-300",
-  warn: "border-amber-800/60 bg-amber-950/40 text-amber-300",
-  urgent: "border-red-800/60 bg-red-950/40 text-red-300",
+  ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  warn: "border-amber-200 bg-amber-50 text-amber-900",
+  urgent: "border-red-200 bg-red-50 text-red-800",
 };
 
 export function AdminSituationBar({ situation }: { situation: SituationCounts }) {
@@ -26,10 +26,10 @@ export function AdminSituationBar({ situation }: { situation: SituationCounts })
             key={pill.key}
             href={pill.href}
             role="listitem"
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition hover:brightness-110 ${URGENCY_CLASS[level]}`}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm transition hover:brightness-[0.98] ${URGENCY_CLASS[level]}`}
           >
             <span>{pill.label}</span>
-            <span className="rounded-full bg-black/20 px-2 py-0.5 text-xs font-bold tabular-nums">
+            <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold tabular-nums">
               {count}
             </span>
           </Link>
@@ -62,12 +62,12 @@ export function AdminKpiGrid({
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-xl border border-slate-800 bg-slate-900/80 p-4"
+          className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
         >
-          <p className="text-xs uppercase tracking-wide text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             {item.label}
           </p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">
+          <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
             {item.value ?? "—"}
           </p>
         </div>

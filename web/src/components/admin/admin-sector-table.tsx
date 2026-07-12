@@ -8,9 +8,9 @@ import {
 
 function urgencyDot(count: number) {
   const level = urgencyLevel(count);
-  if (level === "ok") return "text-emerald-400";
-  if (level === "warn") return "text-amber-400";
-  return "text-red-400";
+  if (level === "ok") return "text-emerald-700";
+  if (level === "warn") return "text-amber-700";
+  return "text-red-700";
 }
 
 export function AdminSectorGroupsTable({ rows }: { rows: SectorRow[] }) {
@@ -19,13 +19,13 @@ export function AdminSectorGroupsTable({ rows }: { rows: SectorRow[] }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
           Totali per macro-settore
         </h2>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-800">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="border-b border-slate-800 bg-slate-900/80 text-xs uppercase text-slate-500">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full min-w-[640px] text-left text-sm text-slate-800">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-600">
             <tr>
               <th className="px-3 py-2">Settore</th>
               <th className="px-3 py-2">Talent</th>
@@ -48,11 +48,11 @@ export function AdminSectorGroupsTable({ rows }: { rows: SectorRow[] }) {
 
 function SectorGroupRow({ group }: { group: SectorGroup }) {
   return (
-    <tr className="border-b border-slate-800/80 hover:bg-slate-900/50">
+    <tr className="border-b border-slate-100 hover:bg-slate-50">
       <td className="px-3 py-2">
         <Link
           href={`/admin/settore/${group.id}`}
-          className="font-medium text-sky-400 hover:text-sky-300"
+          className="font-medium text-orange-700 hover:text-orange-800"
         >
           {group.label}
         </Link>
@@ -102,12 +102,12 @@ export function AdminSkillDetailTable({ rows }: { rows: SectorRow[] }) {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
         Dettaglio per skill
       </h2>
-      <div className="overflow-x-auto rounded-xl border border-slate-800">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b border-slate-800 bg-slate-900/80 text-xs uppercase text-slate-500">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full min-w-[720px] text-left text-sm text-slate-800">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-600">
             <tr>
               <th className="px-3 py-2">Skill</th>
               <th className="px-3 py-2">SOS</th>
@@ -120,19 +120,19 @@ export function AdminSkillDetailTable({ rows }: { rows: SectorRow[] }) {
             {(activeRows.length ? activeRows : rows).map((row) => (
               <tr
                 key={row.skill_slug}
-                className="border-b border-slate-800/80 hover:bg-slate-900/50"
+                className="border-b border-slate-100 hover:bg-slate-50"
               >
                 <td className="px-3 py-2">
                   <Link
                     href={`/admin/settore/${row.skill_slug}`}
-                    className="font-medium text-sky-400 hover:text-sky-300"
+                    className="font-medium text-orange-700 hover:text-orange-800"
                   >
                     {row.skill_label}
                   </Link>
                 </td>
                 <td className="px-3 py-2">
                   {row.sos_enabled ? (
-                    <span className="text-emerald-400">Sì</span>
+                    <span className="text-emerald-700">Sì</span>
                   ) : (
                     <span className="text-slate-500">No</span>
                   )}
@@ -145,7 +145,7 @@ export function AdminSkillDetailTable({ rows }: { rows: SectorRow[] }) {
                     {row.talent_count}
                   </Link>
                   {row.talent_pending > 0 && (
-                    <span className="ml-1 text-xs text-amber-400">
+                    <span className="ml-1 text-xs text-amber-700">
                       (+{row.talent_pending} verifica)
                     </span>
                   )}
